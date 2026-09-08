@@ -1,0 +1,3 @@
+[console_scripts]
+video-upscaler = video_upscaler.cli:main
+video-upscaler-gui = video_upscaler.gui:launch_gui

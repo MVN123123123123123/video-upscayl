@@ -1,0 +1,6 @@
+numpy>=1.24.0
+click>=8.0.0
+rich>=12.0.0
+pillow>=9.0.0
+tqdm>=4.60.0
+opencv-python>=4.5.0

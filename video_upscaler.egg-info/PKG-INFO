@@ -1,0 +1,163 @@
+Metadata-Version: 2.4
+Name: video-upscaler
+Version: 1.0.0
+Summary: High-Performance Hardware-Accelerated Video Upscaler with C++ Vulkan/AVX-512 backend
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: click>=8.0.0
+Requires-Dist: rich>=12.0.0
+Requires-Dist: pillow>=9.0.0
+Requires-Dist: tqdm>=4.60.0
+Requires-Dist: opencv-python>=4.5.0
+
+# 🚀 Video-Upscayl
+
+A high-performance, hardware-accelerated video super-resolution upscaler written in **Python** with a high-speed native **C++ backend** leveraging **Vulkan** and **AVX-512 / OpenMP**.
+
+Engineered specifically to maximize throughput directly on your computer's hardware, Video-Upscayl can run on **GPU**, **CPU**, or concurrently in **Hybrid mode (GPU + CPU)**. It includes an automatic hardware benchmarker that detects and selects the fastest execution path for your machine.
+
+---
+
+## ✨ Key Features
+
+- **⚡ Native C++ Hardware Acceleration**:
+  - **Vulkan Compute**: FP16 packed math, 16x16 cooperative matrix acceleration on AMD Radeon, NVIDIA, and Intel GPUs.
+  - **AVX-512 / OpenMP CPU Vectorization**: Utilizes all high-performance CPU cores (e.g. AMD Zen 4 / Intel AVX-512) with zero python GIL contention.
+  - **Hybrid Parallel Execution**: Distributes inference workloads concurrently across GPU and CPU for maximized aggregate throughput.
+- **🔍 Auto-Benchmark & Fastest Device Selection**:
+  - Automatically benchmarks GPU, CPU, and Hybrid configurations on startup to run your videos at the highest possible FPS.
+- **🌊 Zero-Disk-I/O Streaming Pipeline**:
+  - Decodes and encodes video frames in-memory via direct FFmpeg pipes (`rgb24`).
+  - Never writes intermediate PNG/JPG images to disk, preserving SSD health and eliminating I/O bottlenecks.
+- **🧩 Seamless Tiling with Reflective Margin Padding**:
+  - Handles 720p, 1080p, 1440p, and 4K footage without running out of VRAM.
+  - Overlapping tiles with reflective boundary padding prevent visible seam lines or border artifacts.
+- **🎵 Bit-Perfect Audio & Subtitle Preservation**:
+  - Copies multi-track audio, subtitles, chapters, and container metadata without re-encoding quality degradation.
+- **🎨 Rich CLI & Telemetry**:
+  - Real-time animated progress display with FPS, elapsed time, ETA, and speed multiplier.
+  - Generates side-by-side before/after comparison videos with `--compare`.
+
+---
+
+## 📊 Benchmark Results
+
+Measured on **AMD Ryzen 5 8600G (12 Threads) + AMD Radeon 760M (Mesa RADV Vulkan 1.4)**:
+
+| Mode | Backend | Throughput (256x256) | Latency | Relative Speed |
+| :--- | :--- | :---: | :---: | :---: |
+| **GPU (Vulkan)** | Native C++ Vulkan FP16 | **22.0 FPS** | **45.3 ms** | **6.8x** |
+| **Hybrid (GPU + CPU)** | Concurrent Work Queue | **22.2 FPS** | **45.0 ms** | **6.9x** |
+| **CPU (AVX-512)** | OpenMP 12-thread SIMD | **3.2 FPS** | **311.5 ms** | **1.0x** |
+
+---
+
+## 🛠️ Installation & Setup
+
+### 1. Prerequisites
+- Linux / CachyOS / Arch / Ubuntu
+- `g++` (C++17 support) & `cmake`
+- `ffmpeg` with `libx264`
+- `vulkan-icd-loader` & Vulkan drivers (`vulkan-radeon`, `mesa`, etc.)
+- Python 3.10+ and `uv` or `pip`
+
+### 2. Build the C++ Native Backend
+```bash
+./scripts/build_backend.sh
+```
+This compiles `build/libvideoupscaler.so` optimized with `-O3 -march=native -fopenmp`.
+
+### 3. Install Python Dependencies
+Using `uv`:
+```bash
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e .
+```
+Or using standard `pip`:
+```bash
+pip install -e .
+```
+
+---
+
+## 🎬 CLI Usage Guide
+
+### 1. Upscale a Video (Auto-Select Fastest Hardware)
+```bash
+video-upscaler upscale -i input.mp4 -o output.mp4 --device auto
+```
+
+### 2. Force Specific Device Mode
+```bash
+# Force GPU (Vulkan)
+video-upscaler upscale -i input.mp4 --device gpu
+
+# Force Concurrent Hybrid (GPU + CPU)
+video-upscaler upscale -i input.mp4 --device hybrid
+
+# Force Multi-threaded CPU (AVX-512)
+video-upscaler upscale -i input.mp4 --device cpu
+```
+
+### 3. Generate a Side-by-Side Comparison Video
+```bash
+video-upscaler upscale -i input.mp4 --compare
+```
+Generates both `output.mp4` and `output_compare.mp4` with a side-by-side split screen showing original footage versus super-resolution upscaled footage.
+
+### 4. Run Hardware Benchmark
+```bash
+video-upscaler benchmark -w 512 -h 288 -n 5
+```
+
+### 5. Inspect Available Hardware & Models
+```bash
+video-upscaler info
+video-upscaler models
+```
+
+---
+
+## 🧠 Supported Pretrained Models
+
+| Model Name | Scale | Target Content |
+| :--- | :---: | :--- |
+| **`4x-UltraSharp`** *(new)* | 4x | **Maximum detail & texture upscaler** (reconstructs micro-details, hair, fabric, crisp lines) |
+| `realesr-animevideov3-x2` *(default)* | 2x | High-speed anime, cartoon, animation video |
+| `realesr-animevideov3-x3` | 3x | High-speed anime, cartoon, animation video |
+| `realesr-animevideov3-x4` | 4x | High-speed anime, cartoon, animation video |
+| `realesrgan-x4plus` | 4x | Real-world footage, live action video, photos |
+| `realesrgan-x4plus-anime` | 4x | 2D illustrations, digital artwork, anime |
+
+---
+
+## 🐍 Python API Example
+
+```python
+from video_upscaler import VideoUpscalePipeline, DeviceType
+
+pipeline = VideoUpscalePipeline(
+    input_path="input.mp4",
+    output_path="output.mp4",
+    model_name="realesr-animevideov3-x2",
+    scale=2,
+    device_type=DeviceType.GPU,  # Or DeviceType.HYBRID / DeviceType.CPU
+    tile_size=256,
+    tile_pad=10
+)
+
+stats = pipeline.run()
+print(f"Processed {stats['processed_frames']} frames at {stats['average_fps']:.2f} FPS")
+```
+
+---
+
+## 🧪 Running Automated Tests
+
+Run the complete test suite:
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+All tests validate C++ C-ABI bindings, GPU enumeration, tile seam continuity, hardware benchmarks, and end-to-end video processing.
