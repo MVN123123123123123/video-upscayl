@@ -53,13 +53,13 @@ struct videoupscaler_ctx {
     int tile_size;
     int tile_pad;
     int num_threads;
+    int gpu_device_id;
     std::string model_path;
     std::string param_path;
 
     std::unique_ptr<InferenceWorker> gpu_worker;
     std::unique_ptr<InferenceWorker> cpu_worker;
 
-    // Mutex for context lifetime
     std::mutex ctx_mutex;
 };
 

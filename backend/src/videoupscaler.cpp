@@ -1,40 +1,42 @@
 #include "videoupscaler.h"
 #include "engine.h"
 #include "tiler.h"
+#include "ncnn/cpu.h"
 #include <chrono>
 #include <iostream>
 #include <cstring>
 #include <thread>
 #include <vector>
 #include <atomic>
+#include <algorithm>
 
-static std::atomic<int> g_instance_count{0};
+static std::atomic<bool> g_gpu_initialized{false};
 static std::mutex g_gpu_init_mutex;
 
 static void ensure_gpu_instance() {
-    std::lock_guard<std::mutex> lock(g_gpu_init_mutex);
-    if (g_instance_count.fetch_add(1) == 0) {
-        ncnn::create_gpu_instance();
+    if (!g_gpu_initialized.load(std::memory_order_acquire)) {
+        std::lock_guard<std::mutex> lock(g_gpu_init_mutex);
+        if (!g_gpu_initialized.load(std::memory_order_relaxed)) {
+            ncnn::create_gpu_instance();
+            g_gpu_initialized.store(true, std::memory_order_release);
+        }
     }
 }
 
 static void release_gpu_instance() {
-    std::lock_guard<std::mutex> lock(g_gpu_init_mutex);
-    if (g_instance_count.fetch_sub(1) == 1) {
-        ncnn::destroy_gpu_instance();
-    }
+    // Keep GPU instance alive across sessions for optimal performance
 }
 
 extern "C" {
 
-int videoupscaler_get_gpu_count() {
+VIDEOUPSCALER_API int videoupscaler_get_gpu_count() {
     ensure_gpu_instance();
     int count = ncnn::get_gpu_count();
     release_gpu_instance();
     return count;
 }
 
-const char* videoupscaler_get_gpu_name(int device_index) {
+VIDEOUPSCALER_API const char* videoupscaler_get_gpu_name(int device_index) {
     ensure_gpu_instance();
     int count = ncnn::get_gpu_count();
     const char* name = "Unknown GPU";
@@ -48,7 +50,79 @@ const char* videoupscaler_get_gpu_name(int device_index) {
     return name;
 }
 
-videoupscaler_t* videoupscaler_create(
+VIDEOUPSCALER_API const char* videoupscaler_get_gpu_vendor(int device_index) {
+    ensure_gpu_instance();
+    int count = ncnn::get_gpu_count();
+    const char* vendor = "Unknown";
+    if (device_index >= 0 && device_index < count) {
+        const ncnn::VulkanDevice* dev = ncnn::get_gpu_device(device_index);
+        if (dev) {
+            uint32_t vid = dev->info.vendor_id();
+            switch (vid) {
+                case 0x1002: vendor = "AMD"; break;
+                case 0x10DE: vendor = "NVIDIA"; break;
+                case 0x8086: vendor = "Intel"; break;
+                case 0x13B5: vendor = "ARM"; break;
+                case 0x5143: vendor = "Qualcomm"; break;
+                case 0x106B: vendor = "Apple"; break;
+                case 0x1010: vendor = "ImgTec"; break;
+                case 0x14E4: vendor = "Broadcom"; break;
+                default:     vendor = "Generic"; break;
+            }
+        }
+    }
+    release_gpu_instance();
+    return vendor;
+}
+
+VIDEOUPSCALER_API int videoupscaler_get_gpu_type(int device_index) {
+    ensure_gpu_instance();
+    int count = ncnn::get_gpu_count();
+    int type = -1;
+    if (device_index >= 0 && device_index < count) {
+        const ncnn::VulkanDevice* dev = ncnn::get_gpu_device(device_index);
+        if (dev) {
+            type = dev->info.type(); // 0 = discrete, 1 = integrated, 2 = virtual, 3 = cpu
+        }
+    }
+    release_gpu_instance();
+    return type;
+}
+
+VIDEOUPSCALER_API const char* videoupscaler_get_cpu_simd_info() {
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+    if (ncnn::cpu_support_x86_avx512()) {
+        return "AVX-512";
+    }
+    if (ncnn::cpu_support_x86_avx2()) {
+        return ncnn::cpu_support_x86_fma() ? "AVX2 + FMA" : "AVX2";
+    }
+    if (ncnn::cpu_support_x86_avx()) {
+        return "AVX";
+    }
+    if (ncnn::cpu_support_x86_fma()) {
+        return "FMA";
+    }
+    return "SSE4.2 / x86";
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__)
+    if (ncnn::cpu_support_arm_sve()) {
+        return "ARM SVE";
+    }
+    if (ncnn::cpu_support_arm_neon()) {
+        return "ARM NEON";
+    }
+    return "ARM Standard";
+#elif defined(__riscv)
+    if (ncnn::cpu_support_riscv_v()) {
+        return "RISC-V Vector";
+    }
+    return "RISC-V Standard";
+#else
+    return "Standard Multi-Core";
+#endif
+}
+
+VIDEOUPSCALER_API videoupscaler_t* videoupscaler_create(
     const char* model_path,
     const char* param_path,
     int scale,
@@ -57,11 +131,42 @@ videoupscaler_t* videoupscaler_create(
     int tile_pad,
     int num_threads
 ) {
+    return videoupscaler_create_with_gpu(
+        model_path,
+        param_path,
+        scale,
+        device_type,
+        tile_size,
+        tile_pad,
+        num_threads,
+        -1 // Auto-pick discrete/best GPU
+    );
+}
+
+VIDEOUPSCALER_API videoupscaler_t* videoupscaler_create_with_gpu(
+    const char* model_path,
+    const char* param_path,
+    int scale,
+    int device_type,
+    int tile_size,
+    int tile_pad,
+    int num_threads,
+    int gpu_device_id
+) {
     if (!model_path || !param_path) {
         return nullptr;
     }
 
     ensure_gpu_instance();
+
+    int target_gpu = gpu_device_id;
+    int gpu_count = ncnn::get_gpu_count();
+    if (target_gpu < 0 || target_gpu >= gpu_count) {
+        target_gpu = ncnn::get_default_gpu_index();
+    }
+    if (target_gpu < 0 && gpu_count > 0) {
+        target_gpu = 0;
+    }
 
     auto* ctx = new videoupscaler_ctx();
     ctx->scale = scale;
@@ -69,13 +174,14 @@ videoupscaler_t* videoupscaler_create(
     ctx->tile_size = (tile_size > 0) ? tile_size : 0;
     ctx->tile_pad = (tile_pad >= 0) ? tile_pad : 10;
     ctx->num_threads = num_threads;
+    ctx->gpu_device_id = target_gpu;
     ctx->model_path = model_path;
     ctx->param_path = param_path;
 
     if (device_type == DEVICE_GPU || device_type == DEVICE_HYBRID) {
         ctx->gpu_worker = std::make_unique<InferenceWorker>();
-        if (!ctx->gpu_worker->init(model_path, param_path, true, 0, 0)) {
-            std::cerr << "[VideoUpscaler] Failed to initialize GPU worker" << std::endl;
+        if (!ctx->gpu_worker->init(model_path, param_path, true, target_gpu, 0)) {
+            std::cerr << "[VideoUpscaler] Failed to initialize GPU worker on device " << target_gpu << std::endl;
             delete ctx;
             release_gpu_instance();
             return nullptr;
@@ -178,7 +284,7 @@ static int process_tiles_hybrid(
     return error_flag.load();
 }
 
-int videoupscaler_process_frame(
+VIDEOUPSCALER_API int videoupscaler_process_frame(
     videoupscaler_t* handle,
     const unsigned char* in_rgb,
     int in_w,
@@ -227,13 +333,39 @@ int videoupscaler_process_frame(
     return -2;
 }
 
-int videoupscaler_benchmark(
+VIDEOUPSCALER_API int videoupscaler_benchmark(
     const char* model_path,
     const char* param_path,
     int scale,
     int width,
     int height,
     int num_frames,
+    double* out_gpu_fps,
+    double* out_cpu_fps,
+    double* out_hybrid_fps
+) {
+    return videoupscaler_benchmark_with_gpu(
+        model_path,
+        param_path,
+        scale,
+        width,
+        height,
+        num_frames,
+        -1, // Best/default GPU
+        out_gpu_fps,
+        out_cpu_fps,
+        out_hybrid_fps
+    );
+}
+
+VIDEOUPSCALER_API int videoupscaler_benchmark_with_gpu(
+    const char* model_path,
+    const char* param_path,
+    int scale,
+    int width,
+    int height,
+    int num_frames,
+    int gpu_device_id,
     double* out_gpu_fps,
     double* out_cpu_fps,
     double* out_hybrid_fps
@@ -249,8 +381,8 @@ int videoupscaler_benchmark(
 
     // 1. Benchmark GPU
     if (out_gpu_fps) {
-        videoupscaler_t* ctx_gpu = videoupscaler_create(
-            model_path, param_path, scale, DEVICE_GPU, 256, 10, 0
+        videoupscaler_t* ctx_gpu = videoupscaler_create_with_gpu(
+            model_path, param_path, scale, DEVICE_GPU, 256, 10, 0, gpu_device_id
         );
         if (ctx_gpu) {
             // Warmup
@@ -269,7 +401,7 @@ int videoupscaler_benchmark(
         }
     }
 
-    // 2. Benchmark CPU (fewer frames if large, e.g. std::min(num_frames, 3))
+    // 2. Benchmark CPU
     if (out_cpu_fps) {
         int cpu_frames = std::min(num_frames, 3);
         videoupscaler_t* ctx_cpu = videoupscaler_create(
@@ -294,8 +426,8 @@ int videoupscaler_benchmark(
 
     // 3. Benchmark Hybrid
     if (out_hybrid_fps) {
-        videoupscaler_t* ctx_hybrid = videoupscaler_create(
-            model_path, param_path, scale, DEVICE_HYBRID, 256, 10, 0
+        videoupscaler_t* ctx_hybrid = videoupscaler_create_with_gpu(
+            model_path, param_path, scale, DEVICE_HYBRID, 256, 10, 0, gpu_device_id
         );
         if (ctx_hybrid) {
             // Warmup
@@ -317,7 +449,7 @@ int videoupscaler_benchmark(
     return 0;
 }
 
-void videoupscaler_destroy(videoupscaler_t* handle) {
+VIDEOUPSCALER_API void videoupscaler_destroy(videoupscaler_t* handle) {
     if (handle) {
         delete handle;
         release_gpu_instance();

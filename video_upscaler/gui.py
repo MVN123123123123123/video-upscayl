@@ -5,11 +5,11 @@ import queue
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from .backend_bridge import VideoUpscalerBackend, DeviceType
 from .models import MODEL_REGISTRY, list_available_models
-from .utils import probe_video, get_hardware_info
+from .utils import probe_video, get_hardware_info, get_ffmpeg_path, get_subprocess_kwargs
 from .benchmark import run_hardware_benchmark
 from .pipeline import VideoUpscalePipeline
 
@@ -17,11 +17,11 @@ from .pipeline import VideoUpscalePipeline
 class VideoUpscalerGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Video-Upscayl - Hardware Video Upscaler")
-        self.root.geometry("720x680")
-        self.root.minsize(640, 580)
+        self.root.title("Video-Upscayl - Hardware-Accelerated Video Super-Resolution")
+        self.root.geometry("740x700")
+        self.root.minsize(640, 600)
 
-        # Apply clean classic/clam theme
+        # Apply clean theme
         self.style = ttk.Style()
         available_themes = self.style.theme_names()
         if "clam" in available_themes:
@@ -32,8 +32,10 @@ class VideoUpscalerGUI:
         # Variables
         self.input_file_var = tk.StringVar()
         self.output_file_var = tk.StringVar()
-        self.model_var = tk.StringVar(value="4x-UltraSharp")
+        self.model_var = tk.StringVar(value="realesr-animevideov3-x2")
+        self.output_manually_edited = False
         self.device_var = tk.StringVar(value="auto")
+        self.gpu_select_var = tk.StringVar(value="Auto (Best Discrete)")
         self.tile_size_var = tk.StringVar(value="256")
         self.tile_pad_var = tk.StringVar(value="10")
         self.compare_var = tk.BooleanVar(value=False)
@@ -48,6 +50,7 @@ class VideoUpscalerGUI:
         self.cancel_requested = False
         self.worker_thread: Optional[threading.Thread] = None
         self.msg_queue = queue.Queue()
+        self.gpu_devices: List[Dict[str, Any]] = []
 
         self._create_widgets()
         self._check_queue()
@@ -65,12 +68,12 @@ class VideoUpscalerGUI:
         )
         title_label.pack(side=tk.LEFT)
 
-        subtitle_label = ttk.Label(
+        self.subtitle_label = ttk.Label(
             header_frame,
-            text=" - Hardware-Accelerated Video Super-Resolution (Vulkan / AVX-512)",
+            text=" - Universal Hardware-Accelerated Super-Resolution (Vulkan / Multi-Core SIMD)",
             font=("Helvetica", 10)
         )
-        subtitle_label.pack(side=tk.LEFT, padx=5, pady=3)
+        self.subtitle_label.pack(side=tk.LEFT, padx=5, pady=3)
 
         # Main Container
         main_frame = ttk.Frame(self.root, padding=(10, 0, 10, 10))
@@ -94,6 +97,7 @@ class VideoUpscalerGUI:
         ttk.Label(files_group, text="Output Video:").grid(row=2, column=0, sticky=tk.W, pady=2)
         output_entry = ttk.Entry(files_group, textvariable=self.output_file_var, width=50)
         output_entry.grid(row=2, column=1, sticky=tk.EW, padx=5, pady=2)
+        output_entry.bind("<Key>", lambda e: setattr(self, "output_manually_edited", True))
         ttk.Button(files_group, text="Save As...", command=self._browse_output).grid(row=2, column=2, padx=2, pady=2)
 
         files_group.columnconfigure(1, weight=1)
@@ -109,16 +113,18 @@ class VideoUpscalerGUI:
             textvariable=self.model_var,
             state="readonly",
             values=[
-                "4x-UltraSharp",
                 "realesr-animevideov3-x2",
                 "realesr-animevideov3-x3",
                 "realesr-animevideov3-x4",
+                "4x-UltraSharp",
                 "realesrgan-x4plus",
                 "realesrgan-x4plus-anime"
             ],
             width=28
         )
         model_combo.grid(row=0, column=1, sticky=tk.W, padx=5, pady=4)
+        model_combo.bind("<<ComboboxSelected>>", lambda e: self._on_model_changed())
+        self.model_var.trace_add("write", lambda *a: self._on_model_changed())
 
         model_desc_btn = ttk.Button(settings_group, text="Model Info", command=self._show_model_info)
         model_desc_btn.grid(row=0, column=2, sticky=tk.W, padx=2, pady=4)
@@ -131,11 +137,22 @@ class VideoUpscalerGUI:
         ttk.Radiobutton(device_frame, text="Auto (Fastest)", variable=self.device_var, value="auto").pack(side=tk.LEFT, padx=3)
         ttk.Radiobutton(device_frame, text="GPU (Vulkan)", variable=self.device_var, value="gpu").pack(side=tk.LEFT, padx=3)
         ttk.Radiobutton(device_frame, text="Hybrid (GPU+CPU)", variable=self.device_var, value="hybrid").pack(side=tk.LEFT, padx=3)
-        ttk.Radiobutton(device_frame, text="CPU (AVX-512)", variable=self.device_var, value="cpu").pack(side=tk.LEFT, padx=3)
+        self.cpu_radio = ttk.Radiobutton(device_frame, text="CPU (SIMD)", variable=self.device_var, value="cpu")
+        self.cpu_radio.pack(side=tk.LEFT, padx=3)
 
-        # Tile size and Padding
+        # GPU selector dropdown (for multi-GPU systems like NVIDIA dGPU + Intel/AMD iGPU)
+        ttk.Label(settings_group, text="Active GPU:").grid(row=2, column=0, sticky=tk.W, pady=4)
+        self.gpu_combo = ttk.Combobox(
+            settings_group,
+            textvariable=self.gpu_select_var,
+            state="readonly",
+            width=40
+        )
+        self.gpu_combo.grid(row=2, column=1, columnspan=2, sticky=tk.W, padx=5, pady=4)
+
+        # Tile size, Padding, CRF
         tile_frame = ttk.Frame(settings_group)
-        tile_frame.grid(row=2, column=1, columnspan=2, sticky=tk.W, padx=5, pady=4)
+        tile_frame.grid(row=3, column=1, columnspan=2, sticky=tk.W, padx=5, pady=4)
 
         ttk.Label(tile_frame, text="Tile Size:").pack(side=tk.LEFT)
         tile_entry = ttk.Entry(tile_frame, textvariable=self.tile_size_var, width=6)
@@ -151,7 +168,7 @@ class VideoUpscalerGUI:
 
         # Checkboxes
         check_frame = ttk.Frame(settings_group)
-        check_frame.grid(row=3, column=1, columnspan=2, sticky=tk.W, padx=5, pady=4)
+        check_frame.grid(row=4, column=1, columnspan=2, sticky=tk.W, padx=5, pady=4)
 
         ttk.Checkbutton(
             check_frame,
@@ -208,7 +225,7 @@ class VideoUpscalerGUI:
         )
         self.status_label.pack(anchor=tk.W, pady=2)
 
-        # 4. Log Area (Old-school terminal style)
+        # 4. Log Area
         log_group = ttk.LabelFrame(main_frame, text="Log Console", padding=5)
         log_group.pack(fill=tk.BOTH, expand=True, pady=5)
 
@@ -261,21 +278,44 @@ class VideoUpscalerGUI:
                     messagebox.showinfo("Finished", msg)
                 else:
                     self.status_text_var.set("Status: Processing Stopped.")
-                    messagebox.showerror("Error / Stopped", msg)
+                    messagebox.showerror("Notice", msg)
 
         self.root.after(100, self._check_queue)
 
     def _load_system_info(self):
         hw = get_hardware_info()
+        simd = hw.get("cpu_simd", "Multi-Core")
+        self.cpu_radio.configure(text=f"CPU ({simd})")
+
+        self.gpu_devices = hw.get("gpus", [])
+        gpu_names = ["Auto (Best Discrete)"]
+        for g in self.gpu_devices:
+            gpu_names.append(f"GPU [{g['id']}]: {g['name']} ({g['vendor']}, {g['type']})")
+
+        self.gpu_combo["values"] = gpu_names
+        self.gpu_combo.current(0)
+
+        gpu_summary = ", ".join(f"{g['vendor']} {g['name']}" for g in self.gpu_devices) if self.gpu_devices else "Vulkan"
+        self.subtitle_label.configure(
+            text=f" - Hardware Super-Resolution ({gpu_summary[:35]}... / {simd})"
+        )
+
         self._log("=== Video-Upscayl Initialized ===")
-        self._log(f"CPU: {hw['cpu_name']} ({hw['cpu_threads']} threads)")
+        self._log(f"OS: {hw['os_name']}")
+        self._log(f"CPU: {hw['cpu_name']} ({hw['cpu_threads']} threads, SIMD: {simd})")
         self._log(f"RAM: {hw['ram_gb']} GB")
-        if hw["gpus"]:
-            for g in hw["gpus"]:
-                self._log(f"GPU [{g['id']}]: {g['name']}")
+        if self.gpu_devices:
+            for g in self.gpu_devices:
+                self._log(f"GPU [{g['id']}]: {g['name']} [Vendor: {g['vendor']}, Type: {g['type']}]")
         else:
-            self._log("GPU: None detected (running CPU AVX-512)")
+            self._log("GPU: None detected (running CPU mode)")
         self._log("Ready.\n")
+
+    def _get_selected_gpu_id(self) -> int:
+        idx = self.gpu_combo.current()
+        if idx <= 0 or idx - 1 >= len(self.gpu_devices):
+            return -1
+        return self.gpu_devices[idx - 1]["id"]
 
     def _browse_input(self):
         file_path = filedialog.askopenfilename(
@@ -298,15 +338,34 @@ class VideoUpscalerGUI:
                 self.info_text_var.set(desc)
 
                 # Pre-fill output
-                stem, ext = os.path.splitext(file_path)
-                model_name = self.model_var.get()
-                scale = MODEL_REGISTRY.get(model_name, {}).get("scale", 2)
-                default_out = f"{stem}_upscaled_{scale}x_{model_name}{ext}"
-                self.output_file_var.set(default_out)
+                self.output_manually_edited = False
+                self._update_output_path(force=True)
                 self._log(f"Selected: {os.path.basename(file_path)} ({meta['width']}x{meta['height']})")
 
             except Exception as e:
                 self.info_text_var.set(f"Could not probe video: {e}")
+                messagebox.showwarning("Notice", f"Could not inspect video metadata:\n{e}")
+
+    def _update_output_path(self, force: bool = False):
+        input_path = self.input_file_var.get().strip()
+        if not input_path:
+            return
+
+        current_out = self.output_file_var.get().strip()
+        is_auto = (
+            not current_out or
+            not getattr(self, "output_manually_edited", False) or
+            "_upscaled_" in current_out
+        )
+        if force or is_auto:
+            stem, ext = os.path.splitext(input_path)
+            model_name = self.model_var.get()
+            scale = MODEL_REGISTRY.get(model_name, {}).get("scale", 2)
+            default_out = f"{stem}_upscaled_{scale}x_{model_name}{ext}"
+            self.output_file_var.set(default_out)
+
+    def _on_model_changed(self):
+        self._update_output_path()
 
     def _browse_output(self):
         file_path = filedialog.asksaveasfilename(
@@ -319,6 +378,7 @@ class VideoUpscalerGUI:
             ]
         )
         if file_path:
+            self.output_manually_edited = True
             self.output_file_var.set(file_path)
 
     def _show_model_info(self):
@@ -338,15 +398,17 @@ class VideoUpscalerGUI:
             self.status_text_var.set("Status: Running hardware benchmark...")
             self.bench_btn.configure(state=tk.DISABLED)
             try:
+                gpu_id = self._get_selected_gpu_id()
                 res = run_hardware_benchmark(
                     model_name="realesr-animevideov3-x2",
                     width=256,
                     height=256,
-                    num_frames=3
+                    num_frames=3,
+                    gpu_id=gpu_id
                 )
-                self._log(f"Results on 256x256:")
-                self._log(f"  • GPU (Vulkan): {res['gpu_fps']:.2f} FPS ({res['gpu_ms']:.1f} ms)")
-                self._log(f"  • CPU (AVX-512): {res['cpu_fps']:.2f} FPS ({res['cpu_ms']:.1f} ms)")
+                self._log("Results on 256x256:")
+                self._log(f"  • {res['gpu_label']}: {res['gpu_fps']:.2f} FPS ({res['gpu_ms']:.1f} ms)")
+                self._log(f"  • {res['cpu_label']}: {res['cpu_fps']:.2f} FPS ({res['cpu_ms']:.1f} ms)")
                 self._log(f"  • Hybrid (GPU+CPU): {res['hybrid_fps']:.2f} FPS ({res['hybrid_ms']:.1f} ms)")
                 self._log(f"Fastest Device: {res['best_device_name']} ({res['best_fps']:.2f} FPS)\n")
                 self.status_text_var.set(f"Benchmark finished: {res['best_device_name']} is fastest.")
@@ -380,6 +442,7 @@ class VideoUpscalerGUI:
 
         model_name = self.model_var.get()
         dev_str = self.device_var.get()
+        gpu_id = self._get_selected_gpu_id()
 
         if dev_str == "auto":
             device_type = DeviceType.AUTO
@@ -407,14 +470,14 @@ class VideoUpscalerGUI:
 
         def run_thread():
             try:
-                # If auto, benchmark
+                # If auto, benchmark to find fastest
                 actual_device = device_type
                 if actual_device == DeviceType.AUTO:
                     self._log("Auto-detecting fastest device...")
                     from .benchmark import auto_select_device
                     meta = probe_video(input_path)
                     model_info = MODEL_REGISTRY.get(model_name, {})
-                    actual_device = auto_select_device(model_info, meta["width"], meta["height"])
+                    actual_device = auto_select_device(model_info, meta["width"], meta["height"], gpu_id=gpu_id)
                     self._log(f"Auto-selected device: {actual_device.name}")
 
                 max_frames = None
@@ -430,6 +493,7 @@ class VideoUpscalerGUI:
                     device_type=actual_device,
                     tile_size=tile_size,
                     tile_pad=tile_pad,
+                    gpu_id=gpu_id,
                     codec=self.codec_var.get(),
                     crf=crf
                 )
@@ -463,9 +527,9 @@ class VideoUpscalerGUI:
                     scale = pipeline.scale
                     out_w = meta["width"] * scale
                     out_h = meta["height"] * scale
-                    import subprocess
+                    ffmpeg_bin = get_ffmpeg_path()
                     cmp_cmd = [
-                        "ffmpeg", "-y", "-v", "error",
+                        ffmpeg_bin, "-y", "-v", "error",
                         "-i", input_path,
                         "-i", output_path,
                         "-filter_complex",
@@ -480,7 +544,8 @@ class VideoUpscalerGUI:
                         "-pix_fmt", "yuv420p",
                         cmp_path
                     ]
-                    subprocess.run(cmp_cmd)
+                    import subprocess
+                    subprocess.run(cmp_cmd, **get_subprocess_kwargs())
                     self._log(f"Comparison video saved: {cmp_path}")
 
                 self.msg_queue.put((

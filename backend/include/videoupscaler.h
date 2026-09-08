@@ -1,6 +1,20 @@
 #ifndef VIDEO_UPSCALER_H
 #define VIDEO_UPSCALER_H
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+  #ifdef VIDEOUPSCALER_EXPORTS
+    #define VIDEOUPSCALER_API __declspec(dllexport)
+  #else
+    #define VIDEOUPSCALER_API __declspec(dllimport)
+  #endif
+#else
+  #if defined(__GNUC__) && __GNUC__ >= 4
+    #define VIDEOUPSCALER_API __attribute__((visibility("default")))
+  #else
+    #define VIDEOUPSCALER_API
+  #endif
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,7 +27,7 @@ extern "C" {
 typedef struct videoupscaler_ctx videoupscaler_t;
 
 /**
- * Creates and initializes an upscaler instance.
+ * Creates and initializes an upscaler instance using the default or best GPU.
  * @param model_path Path to the .bin weights file.
  * @param param_path Path to the .param architecture file.
  * @param scale Upscaling factor (e.g. 2, 3, 4).
@@ -23,7 +37,7 @@ typedef struct videoupscaler_ctx videoupscaler_t;
  * @param num_threads Number of CPU threads (0 for auto-detect).
  * @return Context pointer, or NULL on failure.
  */
-videoupscaler_t* videoupscaler_create(
+VIDEOUPSCALER_API videoupscaler_t* videoupscaler_create(
     const char* model_path,
     const char* param_path,
     int scale,
@@ -31,6 +45,21 @@ videoupscaler_t* videoupscaler_create(
     int tile_size,
     int tile_pad,
     int num_threads
+);
+
+/**
+ * Creates and initializes an upscaler instance specifying the GPU device index.
+ * @param gpu_device_id GPU index (-1 for auto/best discrete GPU).
+ */
+VIDEOUPSCALER_API videoupscaler_t* videoupscaler_create_with_gpu(
+    const char* model_path,
+    const char* param_path,
+    int scale,
+    int device_type,
+    int tile_size,
+    int tile_pad,
+    int num_threads,
+    int gpu_device_id
 );
 
 /**
@@ -42,7 +71,7 @@ videoupscaler_t* videoupscaler_create(
  * @param out_rgb Pointer to output packed RGB24 buffer (size: in_w*scale * in_h*scale * 3).
  * @return 0 on success, non-zero on error.
  */
-int videoupscaler_process_frame(
+VIDEOUPSCALER_API int videoupscaler_process_frame(
     videoupscaler_t* handle,
     const unsigned char* in_rgb,
     int in_w,
@@ -52,18 +81,8 @@ int videoupscaler_process_frame(
 
 /**
  * Benchmarks GPU, CPU, and Hybrid configurations on synthetic input.
- * @param model_path Path to the .bin weights file.
- * @param param_path Path to the .param architecture file.
- * @param scale Upscaling factor.
- * @param width Test frame width.
- * @param height Test frame height.
- * @param num_frames Number of test frames per device.
- * @param out_gpu_fps Pointer to receive GPU frames per second.
- * @param out_cpu_fps Pointer to receive CPU frames per second.
- * @param out_hybrid_fps Pointer to receive Hybrid frames per second.
- * @return 0 on success, non-zero on error.
  */
-int videoupscaler_benchmark(
+VIDEOUPSCALER_API int videoupscaler_benchmark(
     const char* model_path,
     const char* param_path,
     int scale,
@@ -76,19 +95,50 @@ int videoupscaler_benchmark(
 );
 
 /**
+ * Benchmarks GPU, CPU, and Hybrid configurations specifying the GPU device index.
+ */
+VIDEOUPSCALER_API int videoupscaler_benchmark_with_gpu(
+    const char* model_path,
+    const char* param_path,
+    int scale,
+    int width,
+    int height,
+    int num_frames,
+    int gpu_device_id,
+    double* out_gpu_fps,
+    double* out_cpu_fps,
+    double* out_hybrid_fps
+);
+
+/**
  * Returns the number of available Vulkan GPU devices.
  */
-int videoupscaler_get_gpu_count();
+VIDEOUPSCALER_API int videoupscaler_get_gpu_count();
 
 /**
  * Returns the name of the specified GPU device.
  */
-const char* videoupscaler_get_gpu_name(int device_index);
+VIDEOUPSCALER_API const char* videoupscaler_get_gpu_name(int device_index);
+
+/**
+ * Returns the vendor name of the specified GPU (e.g. "NVIDIA", "AMD", "Intel", "Apple", "Unknown").
+ */
+VIDEOUPSCALER_API const char* videoupscaler_get_gpu_vendor(int device_index);
+
+/**
+ * Returns the device type (0 = discrete GPU, 1 = integrated GPU, 2 = virtual GPU, 3 = CPU, -1 = unknown).
+ */
+VIDEOUPSCALER_API int videoupscaler_get_gpu_type(int device_index);
+
+/**
+ * Returns the active CPU vector SIMD extension supported on this host (e.g. "AVX-512", "AVX2 + FMA", "AVX", "SSE4.2", "ARM NEON", "Generic").
+ */
+VIDEOUPSCALER_API const char* videoupscaler_get_cpu_simd_info();
 
 /**
  * Destroys and cleans up the upscaler instance.
  */
-void videoupscaler_destroy(videoupscaler_t* handle);
+VIDEOUPSCALER_API void videoupscaler_destroy(videoupscaler_t* handle);
 
 #ifdef __cplusplus
 }

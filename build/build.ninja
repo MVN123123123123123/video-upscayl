@@ -39,7 +39,7 @@ include CMakeFiles/rules.ninja
 #############################################
 # Logical path to working directory; prefix for absolute paths.
 
-cmake_ninja_workdir = /home/linux/video-upscayl/build/
+cmake_ninja_workdir = /home/linux/video-upscayl/work_crossplatform/build/
 # =============================================================================
 # Object build statements for SHARED_LIBRARY target videoupscaler
 
@@ -49,22 +49,22 @@ cmake_ninja_workdir = /home/linux/video-upscayl/build/
 
 build cmake_object_order_depends_target_videoupscaler: phony || .
 
-build CMakeFiles/videoupscaler.dir/src/engine.cpp.o: CXX_COMPILER__videoupscaler_unscanned_Release /home/linux/video-upscayl/backend/src/engine.cpp || cmake_object_order_depends_target_videoupscaler
+build CMakeFiles/videoupscaler.dir/src/engine.cpp.o: CXX_COMPILER__videoupscaler_unscanned_Release /home/linux/video-upscayl/work_crossplatform/backend/src/engine.cpp || cmake_object_order_depends_target_videoupscaler
   CONFIG = Release
-  DEFINES = -Dvideoupscaler_EXPORTS
+  DEFINES = -DVIDEOUPSCALER_EXPORTS -Dvideoupscaler_EXPORTS
   DEP_FILE = CMakeFiles/videoupscaler.dir/src/engine.cpp.o.d
-  FLAGS = -O3 -DNDEBUG -std=gnu++17 -fPIC -O3 -march=native -Wall -Wextra -fopenmp
-  INCLUDES = -I/home/linux/video-upscayl/backend/include -I/home/linux/video-upscayl/backend/../third_party/ncnn/include
+  FLAGS = -O3 -DNDEBUG -std=gnu++17 -fPIC -O3 -mtune=generic -Wall -Wextra -fopenmp
+  INCLUDES = -I/home/linux/video-upscayl/work_crossplatform/backend/include -I/home/linux/video-upscayl/work_crossplatform/backend/../third_party/ncnn/include
   OBJECT_DIR = CMakeFiles/videoupscaler.dir
   OBJECT_FILE_DIR = CMakeFiles/videoupscaler.dir/src
   TARGET_SUPPORT_DIR = CMakeFiles/videoupscaler.dir
 
-build CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o: CXX_COMPILER__videoupscaler_unscanned_Release /home/linux/video-upscayl/backend/src/videoupscaler.cpp || cmake_object_order_depends_target_videoupscaler
+build CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o: CXX_COMPILER__videoupscaler_unscanned_Release /home/linux/video-upscayl/work_crossplatform/backend/src/videoupscaler.cpp || cmake_object_order_depends_target_videoupscaler
   CONFIG = Release
-  DEFINES = -Dvideoupscaler_EXPORTS
+  DEFINES = -DVIDEOUPSCALER_EXPORTS -Dvideoupscaler_EXPORTS
   DEP_FILE = CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o.d
-  FLAGS = -O3 -DNDEBUG -std=gnu++17 -fPIC -O3 -march=native -Wall -Wextra -fopenmp
-  INCLUDES = -I/home/linux/video-upscayl/backend/include -I/home/linux/video-upscayl/backend/../third_party/ncnn/include
+  FLAGS = -O3 -DNDEBUG -std=gnu++17 -fPIC -O3 -mtune=generic -Wall -Wextra -fopenmp
+  INCLUDES = -I/home/linux/video-upscayl/work_crossplatform/backend/include -I/home/linux/video-upscayl/work_crossplatform/backend/../third_party/ncnn/include
   OBJECT_DIR = CMakeFiles/videoupscaler.dir
   OBJECT_FILE_DIR = CMakeFiles/videoupscaler.dir/src
   TARGET_SUPPORT_DIR = CMakeFiles/videoupscaler.dir
@@ -77,13 +77,13 @@ build CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o: CXX_COMPILER__videou
 #############################################
 # Link the shared library libvideoupscaler.so
 
-build libvideoupscaler.so: CXX_SHARED_LIBRARY_LINKER__videoupscaler_Release CMakeFiles/videoupscaler.dir/src/engine.cpp.o CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o | /usr/lib/libgomp.so /usr/lib/libpthread.a
+build libvideoupscaler.so: CXX_SHARED_LIBRARY_LINKER__videoupscaler_Release CMakeFiles/videoupscaler.dir/src/engine.cpp.o CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o | /usr/lib/libvulkan.so /usr/lib/libgomp.so /usr/lib/libpthread.a
   CONFIG = Release
   DEP_FILE = CMakeFiles/videoupscaler.dir/link.d
   LANGUAGE_COMPILE_FLAGS = -O3 -DNDEBUG
   LINK_FLAGS = -shared -Wl,--dependency-file=CMakeFiles/videoupscaler.dir/link.d
-  LINK_LIBRARIES = -Wl,-rpath,/home/linux/video-upscayl/backend/../third_party/ncnn/lib  -lncnn  -lglslang  -lSPIRV  -lvulkan  -lpthread  -ldl  /usr/lib/libgomp.so  /usr/lib/libpthread.a
-  LINK_PATH = -L/home/linux/video-upscayl/backend/../third_party/ncnn/lib
+  LINK_LIBRARIES = -Wl,-rpath,/home/linux/video-upscayl/work_crossplatform/backend/../third_party/ncnn/lib  -lncnn  -lglslang  -lSPIRV  /usr/lib/libvulkan.so  -lpthread  -ldl  /usr/lib/libgomp.so  /usr/lib/libpthread.a
+  LINK_PATH = -L/home/linux/video-upscayl/work_crossplatform/backend/../third_party/ncnn/lib
   OBJECT_DIR = CMakeFiles/videoupscaler.dir
   POST_BUILD = :
   PRE_LINK = :
@@ -98,7 +98,7 @@ build libvideoupscaler.so: CXX_SHARED_LIBRARY_LINKER__videoupscaler_Release CMak
 # Utility command for edit_cache
 
 build CMakeFiles/edit_cache.util: CUSTOM_COMMAND
-  COMMAND = cd /home/linux/video-upscayl/build && /usr/bin/ccmake -S/home/linux/video-upscayl/backend -B/home/linux/video-upscayl/build
+  COMMAND = cd /home/linux/video-upscayl/work_crossplatform/build && /usr/bin/ccmake -S/home/linux/video-upscayl/work_crossplatform/backend -B/home/linux/video-upscayl/work_crossplatform/build
   DESC = Running CMake cache editor...
   pool = console
   restat = 1
@@ -110,7 +110,7 @@ build edit_cache: phony CMakeFiles/edit_cache.util
 # Utility command for rebuild_cache
 
 build CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
-  COMMAND = cd /home/linux/video-upscayl/build && /usr/bin/cmake --regenerate-during-build -S/home/linux/video-upscayl/backend -B/home/linux/video-upscayl/build
+  COMMAND = cd /home/linux/video-upscayl/work_crossplatform/build && /usr/bin/cmake --regenerate-during-build -S/home/linux/video-upscayl/work_crossplatform/backend -B/home/linux/video-upscayl/work_crossplatform/build
   DESC = Running CMake to regenerate build system...
   pool = console
   restat = 1
@@ -128,7 +128,7 @@ build videoupscaler: phony libvideoupscaler.so
 # =============================================================================
 
 #############################################
-# Folder: /home/linux/video-upscayl/build
+# Folder: /home/linux/video-upscayl/work_crossplatform/build
 
 build all: phony libvideoupscaler.so
 
@@ -139,14 +139,14 @@ build all: phony libvideoupscaler.so
 #############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja /home/linux/video-upscayl/build/cmake_install.cmake: RERUN_CMAKE | /home/linux/video-upscayl/backend/CMakeLists.txt /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeParseImplicitLinkInfo.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/FindOpenMP.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/4.4.3/CMakeCXXCompiler.cmake CMakeFiles/4.4.3/CMakeSystem.cmake
+build build.ninja /home/linux/video-upscayl/work_crossplatform/build/cmake_install.cmake: RERUN_CMAKE | /home/linux/video-upscayl/work_crossplatform/backend/CMakeLists.txt /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeParseImplicitLinkInfo.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/FindOpenMP.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/FindVulkan.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/4.4.3/CMakeCXXCompiler.cmake CMakeFiles/4.4.3/CMakeSystem.cmake
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build /home/linux/video-upscayl/backend/CMakeLists.txt /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeParseImplicitLinkInfo.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/FindOpenMP.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/4.4.3/CMakeCXXCompiler.cmake CMakeFiles/4.4.3/CMakeSystem.cmake: phony
+build /home/linux/video-upscayl/work_crossplatform/backend/CMakeLists.txt /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeParseImplicitLinkInfo.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/FindOpenMP.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/FindVulkan.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/4.4.3/CMakeCXXCompiler.cmake CMakeFiles/4.4.3/CMakeSystem.cmake: phony
 
 
 #############################################

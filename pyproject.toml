@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-upscaler"
-version = "1.0.0"
-description = "High-Performance Hardware-Accelerated Video Upscaler with C++ Vulkan/AVX-512 backend"
+version = "1.1.0"
+description = "Universal Hardware-Accelerated Video Super-Resolution Upscaler with native C++ Vulkan/Multi-Core SIMD backend"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -18,7 +18,11 @@ dependencies = [
 ]
 
 [project.scripts]
-video-upscaler = "video_upscaler.cli:main"
+video-upscaler = "video_upscaler.cli:entry_point"
+video-upscaler-gui = "video_upscaler.gui:launch_gui"
+
+[project.gui-scripts]
+video-upscaler = "video_upscaler.cli:entry_point"
 video-upscaler-gui = "video_upscaler.gui:launch_gui"
 
 [tool.setuptools.packages.find]

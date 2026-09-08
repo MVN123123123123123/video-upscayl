@@ -1,3 +1,3 @@
-/home/linux/video-upscayl/build/CMakeFiles/videoupscaler.dir
-/home/linux/video-upscayl/build/CMakeFiles/edit_cache.dir
-/home/linux/video-upscayl/build/CMakeFiles/rebuild_cache.dir
+/home/linux/video-upscayl/work_crossplatform/build/CMakeFiles/videoupscaler.dir
+/home/linux/video-upscayl/work_crossplatform/build/CMakeFiles/edit_cache.dir
+/home/linux/video-upscayl/work_crossplatform/build/CMakeFiles/rebuild_cache.dir

@@ -44,7 +44,7 @@ rule CUSTOM_COMMAND
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = /usr/bin/cmake --regenerate-during-build -S/home/linux/video-upscayl/backend -B/home/linux/video-upscayl/build
+  command = /usr/bin/cmake --regenerate-during-build -S/home/linux/video-upscayl/work_crossplatform/backend -B/home/linux/video-upscayl/work_crossplatform/build
   description = Re-running CMake...
   generator = 1
 

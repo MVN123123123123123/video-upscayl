@@ -12,7 +12,8 @@ def run_hardware_benchmark(
     model_name: str = "realesr-animevideov3-x2",
     width: int = 512,
     height: int = 288,
-    num_frames: int = 5
+    num_frames: int = 5,
+    gpu_id: int = -1
 ) -> Dict[str, Any]:
     backend = VideoUpscalerBackend()
     model_info = get_model_info(model_name)
@@ -24,18 +25,25 @@ def run_hardware_benchmark(
         scale=model_info["scale"],
         width=width,
         height=height,
-        num_frames=num_frames
+        num_frames=num_frames,
+        gpu_id=gpu_id
     )
 
     gpu_fps = results["gpu_fps"]
     cpu_fps = results["cpu_fps"]
     hybrid_fps = results["hybrid_fps"]
 
+    # Dynamic CPU SIMD string and GPU device name
+    cpu_simd = backend.get_cpu_simd_info()
+    gpus = backend.get_gpu_devices()
+    gpu_label = f"GPU ({gpus[0]['vendor'] + ' ' if gpus else ''}Vulkan)" if gpus else "GPU (Vulkan)"
+    cpu_label = f"CPU ({cpu_simd} / OpenMP)"
+
     # Determine fastest
     scores = [
-        (gpu_fps, DeviceType.GPU, "GPU (Vulkan)"),
-        (cpu_fps, DeviceType.CPU, "CPU (AVX-512 / OpenMP)"),
-        (hybrid_fps, DeviceType.HYBRID, "Hybrid (GPU + CPU)")
+        (gpu_fps, DeviceType.GPU, gpu_label),
+        (cpu_fps, DeviceType.CPU, cpu_label),
+        (hybrid_fps, DeviceType.HYBRID, f"Hybrid ({gpu_label.split()[0]} + CPU)")
     ]
     scores.sort(key=lambda x: x[0], reverse=True)
     best_fps, best_device, best_name = scores[0]
@@ -44,6 +52,7 @@ def run_hardware_benchmark(
         "model": model_info["name"],
         "scale": model_info["scale"],
         "resolution": f"{width}x{height}",
+        "cpu_simd": cpu_simd,
         "gpu_fps": gpu_fps,
         "cpu_fps": cpu_fps,
         "hybrid_fps": hybrid_fps,
@@ -52,7 +61,9 @@ def run_hardware_benchmark(
         "hybrid_ms": (1000.0 / hybrid_fps) if hybrid_fps > 0 else 0.0,
         "best_device": best_device,
         "best_device_name": best_name,
-        "best_fps": best_fps
+        "best_fps": best_fps,
+        "cpu_label": cpu_label,
+        "gpu_label": gpu_label,
     }
 
 
@@ -67,8 +78,8 @@ def format_benchmark_table(bench_data: Dict[str, Any]) -> Table:
     cpu_fps = max(bench_data["cpu_fps"], 0.001)
 
     devices = [
-        ("GPU (Vulkan)", bench_data["gpu_fps"], bench_data["gpu_ms"], DeviceType.GPU),
-        ("CPU (Multi-thread)", bench_data["cpu_fps"], bench_data["cpu_ms"], DeviceType.CPU),
+        (bench_data.get("gpu_label", "GPU (Vulkan)"), bench_data["gpu_fps"], bench_data["gpu_ms"], DeviceType.GPU),
+        (bench_data.get("cpu_label", "CPU (Multi-thread)"), bench_data["cpu_fps"], bench_data["cpu_ms"], DeviceType.CPU),
         ("Hybrid (GPU+CPU)", bench_data["hybrid_fps"], bench_data["hybrid_ms"], DeviceType.HYBRID),
     ]
 
@@ -93,6 +104,7 @@ def auto_select_device(
     model_info: Dict[str, Any],
     width: int,
     height: int,
+    gpu_id: int = -1,
     console: Optional[Console] = None
 ) -> DeviceType:
     if console:
@@ -102,7 +114,8 @@ def auto_select_device(
         model_name=model_info["name"],
         width=min(width, 384),
         height=min(height, 216),
-        num_frames=3
+        num_frames=3,
+        gpu_id=gpu_id
     )
 
     if console:

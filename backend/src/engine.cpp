@@ -1,7 +1,9 @@
 #include "engine.h"
 #include "ncnn/cpu.h"
 #include <iostream>
+#if defined(_OPENMP)
 #include <omp.h>
+#endif
 
 InferenceWorker::InferenceWorker()
     : use_gpu_(false), gpu_id_(0), num_threads_(1) {
@@ -24,11 +26,34 @@ bool InferenceWorker::init(
     gpu_id_ = gpu_id;
 
     if (use_gpu_) {
+        int gpu_count = ncnn::get_gpu_count();
+        if (gpu_count <= 0) {
+            std::cerr << "[VideoUpscaler] No Vulkan GPU devices found on this system" << std::endl;
+            return false;
+        }
+
+        // Handle auto/best selection or out of range index
+        if (gpu_id_ < 0 || gpu_id_ >= gpu_count) {
+            gpu_id_ = ncnn::get_default_gpu_index();
+        }
+        if (gpu_id_ < 0 || gpu_id_ >= gpu_count) {
+            gpu_id_ = 0;
+        }
+
+        const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_id_);
+        if (!vkdev) {
+            std::cerr << "[VideoUpscaler] Vulkan GPU device " << gpu_id_ << " could not be acquired" << std::endl;
+            return false;
+        }
+
         net_.opt.use_vulkan_compute = true;
-        net_.opt.use_fp16_packed = true;
-        net_.opt.use_fp16_storage = true;
-        net_.opt.use_fp16_arithmetic = true;
+        // Dynamically probe hardware capabilities for NVIDIA, AMD, Intel, and other GPU vendors
+        net_.opt.use_fp16_packed = vkdev->info.support_fp16_packed();
+        net_.opt.use_fp16_storage = vkdev->info.support_fp16_storage();
+        net_.opt.use_fp16_arithmetic = vkdev->info.support_fp16_arithmetic();
         net_.opt.use_packing_layout = true;
+        net_.opt.use_shader_local_memory = true;
+        net_.opt.use_cooperative_matrix = vkdev->info.support_cooperative_matrix();
         net_.set_vulkan_device(gpu_id_);
     } else {
         net_.opt.use_vulkan_compute = false;
@@ -41,6 +66,8 @@ bool InferenceWorker::init(
         }
         num_threads_ = threads;
         net_.opt.num_threads = num_threads_;
+        // NCNN automatically executes AVX-512, AVX2, AVX, SSE4.2, or NEON routines
+        // via its internal runtime CPU instruction set detection.
     }
 
     int ret_param = net_.load_param(param_path.c_str());

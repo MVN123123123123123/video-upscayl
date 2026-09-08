@@ -13,11 +13,25 @@ class TestBackend(unittest.TestCase):
         assert os.path.exists(cls.model_bin), f"Model bin not found: {cls.model_bin}"
         assert os.path.exists(cls.model_param), f"Model param not found: {cls.model_param}"
 
+    def test_cpu_simd_detection(self):
+        simd = self.backend.get_cpu_simd_info()
+        self.assertIsInstance(simd, str)
+        self.assertGreater(len(simd), 0)
+        # Should detect one of the valid SIMD families
+        valid_families = ["AVX", "SSE", "NEON", "ARM", "RISC-V", "Standard"]
+        self.assertTrue(any(v in simd for v in valid_families), f"Unexpected SIMD string: {simd}")
+
     def test_gpu_discovery(self):
         gpus = self.backend.get_gpu_devices()
         self.assertIsInstance(gpus, list)
         self.assertGreaterEqual(len(gpus), 1)
-        self.assertIn("Radeon", gpus[0]["name"])
+        # Vendor-neutral validation: check that name and vendor are reported cleanly
+        first_gpu = gpus[0]
+        self.assertIn("name", first_gpu)
+        self.assertIn("vendor", first_gpu)
+        self.assertIn("type", first_gpu)
+        self.assertGreater(len(first_gpu["name"]), 0)
+        self.assertGreater(len(first_gpu["vendor"]), 0)
 
     def test_gpu_upscale(self):
         session = self.backend.create_instance(

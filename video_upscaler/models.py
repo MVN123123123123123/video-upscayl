@@ -66,25 +66,81 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
 }
 
 
+MODEL_ALIASES: Dict[str, str] = {
+    # animevideov3 aliases
+    "animevidv3-2x": "realesr-animevideov3-x2",
+    "animevidv3-x2": "realesr-animevideov3-x2",
+    "animevideov3-2x": "realesr-animevideov3-x2",
+    "animevideov3-x2": "realesr-animevideov3-x2",
+    "animevid-2x": "realesr-animevideov3-x2",
+    "anime-2x": "realesr-animevideov3-x2",
+    "anime2x": "realesr-animevideov3-x2",
+    "realesr-anime-2x": "realesr-animevideov3-x2",
+
+    "animevidv3-3x": "realesr-animevideov3-x3",
+    "animevidv3-x3": "realesr-animevideov3-x3",
+    "animevideov3-3x": "realesr-animevideov3-x3",
+    "animevideov3-x3": "realesr-animevideov3-x3",
+    "animevid-3x": "realesr-animevideov3-x3",
+    "anime-3x": "realesr-animevideov3-x3",
+    "anime3x": "realesr-animevideov3-x3",
+    "realesr-anime-3x": "realesr-animevideov3-x3",
+
+    "animevidv3-4x": "realesr-animevideov3-x4",
+    "animevidv3-x4": "realesr-animevideov3-x4",
+    "animevideov3-4x": "realesr-animevideov3-x4",
+    "animevideov3-x4": "realesr-animevideov3-x4",
+    "animevid-4x": "realesr-animevideov3-x4",
+    "anime-4x": "realesr-animevideov3-x4",
+    "anime4x": "realesr-animevideov3-x4",
+    "realesr-anime-4x": "realesr-animevideov3-x4",
+
+    # ultrasharp aliases
+    "ultrasharp": "4x-UltraSharp",
+    "ultra-sharp": "4x-UltraSharp",
+    "4x-ultrasharp": "4x-UltraSharp",
+    "4xultrasharp": "4x-UltraSharp",
+
+    # x4plus aliases
+    "x4plus": "realesrgan-x4plus",
+    "realesr-x4plus": "realesrgan-x4plus",
+    "x4plus-anime": "realesrgan-x4plus-anime",
+    "realesr-x4plus-anime": "realesrgan-x4plus-anime",
+}
+
+
 def list_available_models() -> List[Dict[str, Any]]:
     return list(MODEL_REGISTRY.values())
 
 
-def get_model_info(model_identifier: str, scale: Optional[int] = None) -> Dict[str, Any]:
-    # Exact match
-    if model_identifier in MODEL_REGISTRY:
-        return MODEL_REGISTRY[model_identifier]
+def get_model_info(model_identifier: Optional[str] = None, scale: Optional[int] = None) -> Dict[str, Any]:
+    if model_identifier:
+        # 1. Exact match
+        if model_identifier in MODEL_REGISTRY:
+            return MODEL_REGISTRY[model_identifier]
 
-    # Match by scale
+        # 2. Case-insensitive exact match
+        for name, info in MODEL_REGISTRY.items():
+            if name.lower() == model_identifier.lower():
+                return info
+
+        # 3. Known alias match
+        norm = model_identifier.lower().replace("_", "-").strip()
+        if norm in MODEL_ALIASES:
+            return MODEL_REGISTRY[MODEL_ALIASES[norm]]
+
+        # 4. Fuzzy substring match (with or without hyphens)
+        clean_id = norm.replace("-", "")
+        for name, info in MODEL_REGISTRY.items():
+            clean_name = name.lower().replace("-", "")
+            if clean_id in clean_name or clean_name in clean_id:
+                return info
+
+    # 5. Match by scale if model_identifier is not given or not matched
     if scale is not None:
         for m in MODEL_REGISTRY.values():
             if m["scale"] == scale:
                 return m
-
-    # Fuzzy match
-    for name, info in MODEL_REGISTRY.items():
-        if model_identifier.lower() in name.lower():
-            return info
 
     available = ", ".join(MODEL_REGISTRY.keys())
     raise ValueError(f"Unknown model '{model_identifier}'. Available models: {available}")

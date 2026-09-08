@@ -4,6 +4,10 @@
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
 
 struct TileInfo {
     int x0;          // Tile start X in original image
@@ -72,14 +76,20 @@ public:
     ) {
         if (t.pad == 0) {
             // Full image or unpadded
+            #if defined(_OPENMP)
+            #pragma omp parallel for schedule(static) if(t.h > 16)
+            #endif
             for (int y = 0; y < t.h; y++) {
                 const uint8_t* src_row = in_rgb + ((t.y0 + y) * in_w + t.x0) * 3;
                 uint8_t* dst_row = tile_rgb + (y * t.w) * 3;
-                std::copy(src_row, src_row + t.w * 3, dst_row);
+                std::memcpy(dst_row, src_row, t.w * 3);
             }
             return;
         }
 
+        #if defined(_OPENMP)
+        #pragma omp parallel for schedule(static) if(t.padded_h > 16)
+        #endif
         for (int py = 0; py < t.padded_h; py++) {
             int src_y = reflect_coord(t.y0 - t.pad + py, in_h);
             const uint8_t* src_row = in_rgb + (src_y * in_w) * 3;
@@ -111,16 +121,18 @@ public:
         int tile_stride = t.padded_w * scale * 3;
         int out_stride = out_w * 3;
 
+        int copy_bytes = std::min(valid_w, out_w - dst_x0) * 3;
+        if (copy_bytes <= 0) return;
+
+        #if defined(_OPENMP)
+        #pragma omp parallel for schedule(static) if(valid_h > 16)
+        #endif
         for (int y = 0; y < valid_h; y++) {
             int dst_y = dst_y0 + y;
-            if (dst_y >= out_h) break;
-
-            const uint8_t* src_ptr = tile_rgb + (crop_y + y) * tile_stride + crop_x * 3;
-            uint8_t* dst_ptr = out_rgb + dst_y * out_stride + dst_x0 * 3;
-
-            int copy_bytes = std::min(valid_w, out_w - dst_x0) * 3;
-            if (copy_bytes > 0) {
-                std::copy(src_ptr, src_ptr + copy_bytes, dst_ptr);
+            if (dst_y < out_h) {
+                const uint8_t* src_ptr = tile_rgb + (crop_y + y) * tile_stride + crop_x * 3;
+                uint8_t* dst_ptr = out_rgb + dst_y * out_stride + dst_x0 * 3;
+                std::memcpy(dst_ptr, src_ptr, copy_bytes);
             }
         }
     }

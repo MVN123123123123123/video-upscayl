@@ -17,7 +17,7 @@ from rich.console import Console
 
 from .backend_bridge import VideoUpscalerBackend, UpscalerSession, DeviceType
 from .models import get_model_info, ensure_model_files
-from .utils import probe_video
+from .utils import probe_video, get_ffmpeg_path, get_subprocess_kwargs
 
 
 class VideoUpscalePipeline:
@@ -31,6 +31,7 @@ class VideoUpscalePipeline:
         tile_size: int = 256,
         tile_pad: int = 10,
         num_threads: int = 0,
+        gpu_id: int = -1,
         codec: str = "libx264",
         crf: int = 18,
         preset: str = "fast",
@@ -44,6 +45,7 @@ class VideoUpscalePipeline:
         self.tile_size = tile_size
         self.tile_pad = tile_pad
         self.num_threads = num_threads
+        self.gpu_id = gpu_id
         self.codec = codec
         self.crf = crf
         self.preset = preset
@@ -80,15 +82,19 @@ class VideoUpscalePipeline:
             device_type=self.device_type,
             tile_size=self.tile_size,
             tile_pad=self.tile_pad,
-            num_threads=self.num_threads
+            num_threads=self.num_threads,
+            gpu_id=self.gpu_id
         )
 
         in_frame_bytes = self.in_w * self.in_h * 3
         out_frame_bytes = self.out_w * self.out_h * 3
 
+        ffmpeg_bin = get_ffmpeg_path()
+        sub_kwargs = get_subprocess_kwargs()
+
         # FFmpeg Decoder process (decodes input directly to rawvideo rgb24 on stdout)
         decoder_cmd = [
-            "ffmpeg",
+            ffmpeg_bin,
             "-v", "error",
             "-i", self.input_path,
             "-f", "rawvideo",
@@ -100,7 +106,7 @@ class VideoUpscalePipeline:
 
         # FFmpeg Encoder process (reads rawvideo rgb24 from stdin, muxes audio/subs from input file)
         encoder_cmd = [
-            "ffmpeg",
+            ffmpeg_bin,
             "-y",
             "-v", "error",
             "-f", "rawvideo",
@@ -136,13 +142,15 @@ class VideoUpscalePipeline:
                 decoder_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                bufsize=in_frame_bytes * 4
+                bufsize=in_frame_bytes * 4,
+                **sub_kwargs
             )
             encoder_proc = subprocess.Popen(
                 encoder_cmd,
                 stdin=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                bufsize=out_frame_bytes * 4
+                bufsize=out_frame_bytes * 4,
+                **sub_kwargs
             )
 
             with Progress(

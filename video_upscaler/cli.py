@@ -10,24 +10,33 @@ from rich.text import Text
 from .backend_bridge import VideoUpscalerBackend, DeviceType
 from .models import list_available_models, get_model_info, MODEL_REGISTRY
 from .benchmark import run_hardware_benchmark, format_benchmark_table, auto_select_device
-from .utils import probe_video, get_hardware_info
+from .utils import probe_video, get_hardware_info, get_ffmpeg_path, get_subprocess_kwargs
 from .pipeline import VideoUpscalePipeline
 
 console = Console()
 
 
 def print_banner():
+    hw = get_hardware_info()
+    simd = hw.get("cpu_simd", "SIMD")
+    gpus = hw.get("gpus", [])
+    if gpus:
+        gpu_names = ", ".join(g["name"] for g in gpus[:2])
+        gpu_str = f"Vulkan Compute ({gpu_names})"
+    else:
+        gpu_str = "Vulkan Compute"
+
     title = Text()
     title.append("🚀 Video-Upscayl ", style="bold bright_cyan")
-    title.append("• High-Performance Hardware-Accelerated Upscaler\n", style="bold white")
-    title.append("AMD Radeon Vulkan / AVX-512 OpenMP / Hybrid Pipeline", style="dim cyan")
+    title.append("• Universal Hardware-Accelerated Video Super-Resolution\n", style="bold white")
+    title.append(f"{gpu_str} / {simd} OpenMP / Concurrent Hybrid Pipeline", style="dim cyan")
     console.print(Panel(title, border_style="bright_blue", expand=False))
 
 
 @click.group(invoke_without_command=True)
 @click.pass_context
 def main(ctx):
-    """High-Performance Hardware-Accelerated Video Upscaler."""
+    """Universal High-Performance Hardware-Accelerated Video Upscaler."""
     if ctx.invoked_subcommand is None:
         print_banner()
         console.print("[yellow]Use [bold]video-upscaler --help[/bold] to view all options or run a subcommand.[/yellow]")
@@ -35,23 +44,25 @@ def main(ctx):
 
 @main.command(name="info")
 def info_cmd():
-    """Display system hardware and GPU device information."""
+    """Display system hardware, CPU SIMD vector extensions, and Vulkan GPU telemetry."""
     print_banner()
     hw = get_hardware_info()
 
     table = Table(title="Hardware & System Telemetry", style="cyan")
-    table.add_column("Component", style="bold white", width=20)
+    table.add_column("Component", style="bold white", width=22)
     table.add_column("Details", style="green")
 
+    table.add_row("Operating System", hw["os_name"])
     table.add_row("CPU Model", hw["cpu_name"])
     table.add_row("CPU Threads", f"{hw['cpu_threads']} threads")
+    table.add_row("CPU Vector Acceleration", hw["cpu_simd"])
     table.add_row("System Memory", f"{hw['ram_gb']} GB")
 
     if hw["gpus"]:
         for gpu in hw["gpus"]:
-            table.add_row(f"GPU [{gpu['id']}]", gpu["name"])
+            table.add_row(f"GPU [{gpu['id']}]", f"{gpu['name']} (Vendor: {gpu['vendor']}, {gpu['type']})")
     else:
-        table.add_row("GPU", "[yellow]No Vulkan GPU detected (CPU mode available)[/yellow]")
+        table.add_row("GPU", "[yellow]No Vulkan GPU detected (CPU multi-thread mode available)[/yellow]")
 
     console.print(table)
 
@@ -86,7 +97,8 @@ def gui_cmd():
 @click.option("-w", "--width", default=512, help="Test frame width.")
 @click.option("-h", "--height", default=288, help="Test frame height.")
 @click.option("-n", "--num-frames", default=5, help="Number of benchmark iterations.")
-def benchmark_cmd(model, width, height, num_frames):
+@click.option("--gpu-id", default=-1, type=int, help="Target GPU device index (-1 for auto/best).")
+def benchmark_cmd(model, width, height, num_frames, gpu_id):
     """Benchmark GPU vs CPU vs Hybrid inference speed on this machine."""
     print_banner()
     with console.status("[bold green]Executing hardware benchmark (testing GPU, CPU, and Hybrid)...[/bold green]"):
@@ -94,7 +106,8 @@ def benchmark_cmd(model, width, height, num_frames):
             model_name=model,
             width=width,
             height=height,
-            num_frames=num_frames
+            num_frames=num_frames,
+            gpu_id=gpu_id
         )
 
     console.print(format_benchmark_table(bench))
@@ -107,9 +120,10 @@ def benchmark_cmd(model, width, height, num_frames):
 @main.command(name="upscale")
 @click.option("-i", "--input", "input_file", required=True, type=click.Path(exists=True), help="Input video file path.")
 @click.option("-o", "--output", "output_file", type=click.Path(), help="Output video file path.")
-@click.option("-m", "--model", default=None, help="Model name (e.g. realesr-animevideov3-x2, realesrgan-x4plus).")
+@click.option("-m", "--model", default=None, help="Model name (e.g. 4x-UltraSharp, realesr-animevideov3-x2, realesrgan-x4plus).")
 @click.option("-s", "--scale", type=int, default=None, help="Upscale factor (2, 3, or 4).")
 @click.option("-d", "--device", default="auto", type=click.Choice(["auto", "gpu", "cpu", "hybrid"], case_sensitive=False), help="Hardware acceleration device.")
+@click.option("--gpu-id", default=-1, type=int, help="Target GPU device index (-1 for auto/best).")
 @click.option("-t", "--tile-size", default=256, type=int, help="Tile size (0 to disable tiling).")
 @click.option("--tile-pad", default=10, type=int, help="Tile overlap padding in pixels.")
 @click.option("--threads", default=0, type=int, help="Number of CPU worker threads (0 for auto).")
@@ -125,6 +139,7 @@ def upscale_cmd(
     model,
     scale,
     device,
+    gpu_id,
     tile_size,
     tile_pad,
     threads,
@@ -168,6 +183,7 @@ def upscale_cmd(
             model_info=model_info,
             width=meta["width"],
             height=meta["height"],
+            gpu_id=gpu_id,
             console=console
         )
     elif device.lower() == "gpu":
@@ -208,6 +224,7 @@ def upscale_cmd(
         tile_size=tile_size,
         tile_pad=tile_pad,
         num_threads=threads,
+        gpu_id=gpu_id,
         codec=codec,
         crf=crf,
         preset=preset,
@@ -236,8 +253,9 @@ def upscale_cmd(
         console.print(f"\n[bold yellow]Generating side-by-side comparison video...[/bold yellow]")
         out_w = meta["width"] * chosen_scale
         out_h = meta["height"] * chosen_scale
+        ffmpeg_bin = get_ffmpeg_path()
         cmp_cmd = [
-            "ffmpeg", "-y", "-v", "error",
+            ffmpeg_bin, "-y", "-v", "error",
             "-i", input_file,
             "-i", output_file,
             "-filter_complex",
@@ -254,12 +272,27 @@ def upscale_cmd(
             compare_path
         ]
         import subprocess
-        res = subprocess.run(cmp_cmd)
+        res = subprocess.run(cmp_cmd, **get_subprocess_kwargs())
         if res.returncode == 0:
             console.print(f"[bold green]✔ Comparison video saved:[/bold green] [bold cyan]{compare_path}[/bold cyan]")
         else:
             console.print(f"[bold red]Failed to generate comparison video.[/bold red]")
 
 
+def entry_point():
+    """
+    Main application entry point.
+    On Windows OS, GUI mode is launched automatically by default so everyday Windows users
+    never have to deal with command line interfaces.
+    """
+    if sys.platform == "win32" and "--cli" not in sys.argv:
+        from .gui import launch_gui
+        launch_gui()
+    else:
+        if "--cli" in sys.argv:
+            sys.argv.remove("--cli")
+        main()
+
+
 if __name__ == "__main__":
-    main()
+    entry_point()
