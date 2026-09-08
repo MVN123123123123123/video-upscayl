@@ -1,46 +1,6 @@
-# 🚀 Video-Upscayl
 
-A high-performance, hardware-accelerated video super-resolution upscaler written in **Python** with a high-speed native **C++ backend** leveraging **Vulkan** and **AVX-512 / OpenMP**.
 
-Engineered specifically to maximize throughput directly on your computer's hardware, Video-Upscayl can run on **GPU**, **CPU**, or concurrently in **Hybrid mode (GPU + CPU)**. It includes an automatic hardware benchmarker that detects and selects the fastest execution path for your machine.
-
----
-
-##  Key Features
-
-- **Native C++ Hardware Acceleration**:
-  - **Vulkan Compute**: FP16 packed math, 16x16 cooperative matrix acceleration on AMD Radeon, NVIDIA, and Intel GPUs.
-  - **AVX-512 / OpenMP CPU Vectorization**: Utilizes all high-performance CPU cores (e.g. AMD Zen 4 / Intel AVX-512) with zero python GIL contention.
-  - **Hybrid Parallel Execution**: Distributes inference workloads concurrently across GPU and CPU for maximized aggregate throughput.
-- ** Auto-Benchmark & Fastest Device Selection**:
-  - Automatically benchmarks GPU, CPU, and Hybrid configurations on startup to run your videos at the highest possible FPS.
-- ** Zero-Disk-I/O Streaming Pipeline**:
-  - Decodes and encodes video frames in-memory via direct FFmpeg pipes (`rgb24`).
-  - Never writes intermediate PNG/JPG images to disk, preserving SSD health and eliminating I/O bottlenecks.
-- ** Seamless Tiling with Reflective Margin Padding**:
-  - Handles 720p, 1080p, 1440p, and 4K footage without running out of VRAM.
-  - Overlapping tiles with reflective boundary padding prevent visible seam lines or border artifacts.
-- **🎵 Bit-Perfect Audio & Subtitle Preservation**:
-  - Copies multi-track audio, subtitles, chapters, and container metadata without re-encoding quality degradation.
-- **🎨 Rich CLI & Telemetry**:
-  - Real-time animated progress display with FPS, elapsed time, ETA, and speed multiplier.
-  - Generates side-by-side before/after comparison videos with `--compare`.
-
----
-
-## 📊 Benchmark Results
-
-Measured on **AMD Ryzen 5 8600G (12 Threads) + AMD Radeon 760M (Mesa RADV Vulkan 1.4)**:
-
-| Mode | Backend | Throughput (256x256) | Latency | Relative Speed |
-| :--- | :--- | :---: | :---: | :---: |
-| **GPU (Vulkan)** | Native C++ Vulkan FP16 | **22.0 FPS** | **45.3 ms** | **6.8x** |
-| **Hybrid (GPU + CPU)** | Concurrent Work Queue | **22.2 FPS** | **45.0 ms** | **6.9x** |
-| **CPU (AVX-512)** | OpenMP 12-thread SIMD | **3.2 FPS** | **311.5 ms** | **1.0x** |
-
----
-
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 ### 1. Prerequisites
 - Linux / CachyOS / Arch / Ubuntu / Other
