@@ -2,6 +2,42 @@
 
 Video-Upscayl is a hardware-accelerated video super-resolution tool designed to upscale videos using neural network models. It pairs a high-performance C++ Vulkan/SIMD native backend with an intuitive desktop GUI and feature-rich CLI.
 
+<div align="center">
+
+### 🎬 Interactive Before & After Video Comparison
+
+[![Interactive Demo](https://img.shields.io/badge/🎮_Live_Demo-Interactive_Video_Comparison-00f2fe?style=for-the-badge&logo=html5&logoColor=white)](docs/index.html)
+[![Vulkan GPU](https://img.shields.io/badge/GPU_Acceleration-Vulkan_Compute-red?style=for-the-badge&logo=vulkan&logoColor=white)](#features)
+[![Models](https://img.shields.io/badge/Models-Real--CUGAN_%7C_Real--ESRGAN-purple?style=for-the-badge)](#supported-models)
+
+<br/>
+
+<!-- Hero Animation: Sweeping Before/After Split-Screen Comparison -->
+<p align="center">
+  <img src="docs/images/comparison_demo.webp" alt="Video-Upscayl Interactive Comparison Demo" width="850">
+  <br/>
+  <em>Live split-screen wipe: Original 1024×576 (Left) vs. Video-Upscayl 3x Real-CUGAN Pro 3072×1728 (Right)</em>
+</p>
+
+</div>
+
+---
+
+### 🔍 Pixel-Level Quality Inspection (3x Super-Resolution)
+
+Compare fine anime line-art, facial features, and compression artifact removal:
+
+<p align="center">
+  <img src="docs/images/comparison_crops.png" width="850" alt="Pixel Crop Comparison"/>
+  <br/>
+  <em>Top: Character eyes & eyelashes | Bottom: Linework & soft bokeh lighting</em>
+</p>
+
+> 💡 **Try the Interactive Web Player:**  
+> Run `video-upscaler demo` to open the full interactive comparison player in your browser with real-time draggable wipe sliders, synchronized dual video playback, 4x magnifier loupe, and model switching (Real-CUGAN 3x vs. Real-ESRGAN 2x). You can also open [`docs/index.html`](docs/index.html) directly or host it on GitHub Pages.
+
+---
+
 ## Features
 
 - Vulkan GPU Acceleration: Cross-vendor GPU support across NVIDIA, AMD, and Intel GPUs via Vulkan Compute.
@@ -99,6 +135,18 @@ Test inference speeds on your CPU, GPU, or Hybrid configurations:
 ```bash
 video-upscaler benchmark --model realesr-animevideov3-x2
 ```
+
+#### Launch Interactive Comparison Web Demo
+
+Start a local web server and launch the interactive before/after video comparison player in your browser:
+
+```bash
+video-upscaler demo
+```
+
+Options:
+- `--port INTEGER`: Local port to serve the demo on (default: `8000`).
+- `--no-browser`: Start the local HTTP server without launching the browser automatically.
 
 #### Upscale a Video
 

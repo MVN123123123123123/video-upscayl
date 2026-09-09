@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video-Upscayl — Interactive Video Super-Resolution Comparison</title>
+  <meta name="description" content="Interactive side-by-side and split-screen comparison player demonstrating AI video super-resolution upscaling with Real-CUGAN and Real-ESRGAN via Vulkan.">
+  <link rel="stylesheet" href="compare.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="header">
+    <a href="#" class="brand" id="brand-link">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <h1 class="brand-title">Video-Upscayl</h1>
+      </div>
+      <span class="brand-badge">Interactive Demo</span>
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/your-repo/video-upscayl" target="_blank" rel="noopener noreferrer" class="btn-github" id="github-link">
+        <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        GitHub Repository
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Showcase Content -->
+  <main class="main-content">
+
+    <!-- Controls / Mode Selector Topbar -->
+    <div class="comparison-bar" id="comparison-toolbar">
+      <div class="segmented-group">
+        <span class="segmented-label">View Mode</span>
+        <div class="segmented-control" id="mode-selector" role="tablist">
+          <button class="segmented-btn active" data-mode="split" id="btn-mode-split" role="tab" aria-selected="true">
+            <span>◧</span> Split Slider
+          </button>
+          <button class="segmented-btn" data-mode="side-by-side" id="btn-mode-side" role="tab" aria-selected="false">
+            <span>◫</span> Side-by-Side
+          </button>
+          <button class="segmented-btn" data-mode="loupe" id="btn-mode-loupe" role="tab" aria-selected="false">
+            <span>🔍</span> 4x Magnifier
+          </button>
+          <button class="segmented-btn" data-mode="toggle" id="btn-mode-toggle" role="tab" aria-selected="false">
+            <span>🔀</span> Toggle
+          </button>
+        </div>
+      </div>
+
+      <div class="segmented-group">
+        <span class="segmented-label">AI Model</span>
+        <div class="segmented-control" id="model-selector" role="radiogroup">
+          <button class="segmented-btn active" data-model="3x" id="btn-model-3x">
+            Real-CUGAN 3x (Pro)
+          </button>
+          <button class="segmented-btn" data-model="2x" id="btn-model-2x">
+            Real-ESRGAN 2x (Anime)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Stage / Viewport -->
+    <div class="viewport-wrapper" id="viewport-wrapper">
+      <div class="player-container" id="player-container">
+        <!-- Base Layer: Original Video -->
+        <video class="video-layer" id="video-original" loop playsinline muted preload="auto">
+          <source src="videos/demo_original.mp4" type="video/mp4">
+          Your browser does not support HTML5 video.
+        </video>
+
+        <!-- Top Layer: Upscaled Video (Clipped) -->
+        <div class="video-layer-top" id="video-top-container">
+          <video id="video-upscaled" loop playsinline muted preload="auto">
+            <source src="videos/demo_upscaled_3x.mp4" type="video/mp4" id="upscaled-source">
+            Your browser does not support HTML5 video.
+          </video>
+        </div>
+
+        <!-- Draggable Divider Line & Handle -->
+        <div class="slider-handle" id="slider-handle">
+          <div class="handle-pill">◂ ▸</div>
+        </div>
+
+        <!-- Magnifier Lens Element -->
+        <div class="loupe-lens" id="loupe-lens">
+          <canvas class="loupe-canvas" id="loupe-canvas"></canvas>
+        </div>
+
+        <!-- Overlay Labels & Badges -->
+        <div class="video-badge badge-left" id="badge-left">
+          <span class="badge-dot"></span>
+          <span>Original (1024×576)</span>
+        </div>
+
+        <div class="video-badge badge-right" id="badge-right">
+          <span class="badge-dot"></span>
+          <span id="badge-right-text">Real-CUGAN 3x (3072×1728)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playback Control Deck -->
+    <div class="control-deck" id="control-deck">
+      <div class="timeline-row">
+        <span class="time-display" id="time-display">00:00 / 00:06</span>
+        <div class="scrubber-container" id="scrubber-container" title="Click or drag to scrub">
+          <div class="scrubber-progress" id="scrubber-progress"></div>
+          <div class="scrubber-thumb" id="scrubber-thumb"></div>
+        </div>
+        <span class="time-display" id="frame-display">Frame 0 / 180</span>
+      </div>
+
+      <div class="controls-row">
+        <div class="action-btn-group">
+          <button class="btn-ctrl btn-play" id="btn-play-pause" title="Play / Pause (Spacebar)">
+            <span id="play-icon">▶</span>
+            <span id="play-label">Play</span>
+          </button>
+          <button class="btn-ctrl" id="btn-replay" title="Replay from start">
+            <span>↺</span> Reset
+          </button>
+          <button class="btn-ctrl" id="btn-mute" title="Toggle audio mute">
+            <span id="mute-icon">🔇</span>
+          </button>
+          
+          <div class="segmented-control">
+            <button class="segmented-btn" data-speed="0.25" id="speed-025">0.25x</button>
+            <button class="segmented-btn" data-speed="0.5" id="speed-05">0.5x</button>
+            <button class="segmented-btn active" data-speed="1" id="speed-1">1x</button>
+            <button class="segmented-btn" data-speed="2" id="speed-2">2x</button>
+          </div>
+        </div>
+
+        <div class="status-pills">
+          <div class="status-pill" id="pill-split">Slider: <strong id="pill-split-val">50%</strong></div>
+          <div class="status-pill" id="pill-fps">Framerate: <strong>30 FPS</strong></div>
+          <div class="status-pill" id="pill-vulkan">Backend: <strong style="color: var(--accent-cyan)">Vulkan SIMD</strong></div>
+          <button class="btn-ctrl" id="btn-fullscreen" title="Toggle Fullscreen">⛶</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature & CLI Guide Cards -->
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="card-icon">⚡</div>
+        <h3 class="card-title">Hardware-Accelerated Vulkan Engine</h3>
+        <p class="card-desc">Cross-vendor GPU acceleration across NVIDIA, AMD, and Intel GPUs paired with multi-threaded CPU SIMD fallback.</p>
+        <span class="cli-badge">video-upscaler upscale -i input.mp4 -m realcugan-pro-x3-denoise3x</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="card-icon">🧩</div>
+        <h3 class="card-title">Intelligent Tile Stitching</h3>
+        <p class="card-desc">Zero memory overflow on 4K/8K rendering with dynamic boundary padding to guarantee 0 seam artifacts or black bars.</p>
+        <span class="cli-badge">video-upscaler upscale -i input.mp4 -t 256 --device gpu</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="card-icon">🎮</div>
+        <h3 class="card-title">Launch Interactive Comparison Locally</h3>
+        <p class="card-desc">You can launch this interactive comparison locally directly from your CLI terminal at any time.</p>
+        <span class="cli-badge">video-upscaler demo</span>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <p>Video-Upscayl &copy; 2026. Built with Vulkan, ncnn, FFmpeg, and Python.</p>
+  </footer>
+
+  <script src="compare.js"></script>
+</body>
+</html>

@@ -56,6 +56,13 @@ class TestCrossPlatform(unittest.TestCase):
             entry_point()
             mock_gui_module.launch_gui.assert_called_once()
 
+    def test_entry_point_demo_invokes_cli(self):
+        """Verify that 'demo' subcommand dispatches directly to CLI main."""
+        with patch("video_upscaler.cli.main") as mock_main:
+            with patch("sys.argv", ["video-upscaler", "demo", "--no-browser"]):
+                entry_point()
+                mock_main.assert_called_once()
+
     def test_candidate_model_dirs_and_writable_cache(self):
         from video_upscaler.models import get_candidate_model_dirs, get_writable_model_dir
         dirs = get_candidate_model_dirs()

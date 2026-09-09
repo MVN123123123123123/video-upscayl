@@ -281,6 +281,45 @@ def upscale_cmd(
             console.print(f"[bold red]Failed to generate comparison video.[/bold red]")
 
 
+@main.command(name="demo")
+@click.option("--port", default=8000, type=int, help="Port to host interactive comparison demo on.")
+@click.option("--no-browser", is_flag=True, help="Do not automatically open default web browser.")
+def demo_cmd(port: int, no_browser: bool):
+    """Launch the interactive before/after video comparison web player."""
+    import http.server
+    import socketserver
+    import webbrowser
+    import threading
+
+    docs_dir = Path(__file__).resolve().parent.parent / "docs"
+    if not (docs_dir / "index.html").exists():
+        console.print("[bold red]Error:[/bold red] Interactive demo files not found in docs/ directory.")
+        sys.exit(1)
+
+    class QuietHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(docs_dir), **kwargs)
+
+        def log_message(self, format, *args):
+            pass
+
+    console.print(f"[bold cyan]⚡ Video-Upscayl Interactive Comparison Player[/bold cyan]")
+    console.print(f"Serving demo at: [bold green]http://localhost:{port}[/bold green]")
+    console.print("[dim]Press Ctrl+C to stop the demo server.[/dim]\n")
+
+    url = f"http://localhost:{port}/index.html"
+    if not no_browser:
+        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+
+    try:
+        with socketserver.TCPServer(("", port), QuietHandler) as httpd:
+            httpd.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Demo server stopped.[/yellow]")
+    except Exception as e:
+        console.print(f"[bold red]Failed to start server on port {port}: {e}[/bold red]")
+
+
 def entry_point():
     """
     Main application entry point.
@@ -297,7 +336,7 @@ def entry_point():
     is_appimage = bool(os.environ.get("APPIMAGE") or os.environ.get("APPDIR"))
     is_windows = sys.platform == "win32"
 
-    cli_subcommands = {"upscale", "info", "models", "benchmark", "gui", "--help", "-h", "--version"}
+    cli_subcommands = {"upscale", "info", "models", "benchmark", "gui", "demo", "--help", "-h", "--version"}
     args = sys.argv[1:]
 
     # If any CLI subcommand or help flag is passed, invoke CLI
