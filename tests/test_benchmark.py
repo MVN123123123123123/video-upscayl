@@ -1,5 +1,6 @@
 import unittest
 from video_upscaler.benchmark import run_hardware_benchmark, DeviceType
+from video_upscaler.backend_bridge import VideoUpscalerBackend
 
 
 class TestBenchmark(unittest.TestCase):
@@ -13,11 +14,15 @@ class TestBenchmark(unittest.TestCase):
         self.assertIn("gpu_fps", result)
         self.assertIn("cpu_fps", result)
         self.assertIn("hybrid_fps", result)
-        self.assertGreater(result["gpu_fps"], 0.0)
         self.assertGreater(result["cpu_fps"], 0.0)
-        self.assertGreater(result["hybrid_fps"], 0.0)
-        self.assertIn(result["best_device"], [DeviceType.GPU, DeviceType.CPU, DeviceType.HYBRID])
         self.assertGreater(result["best_fps"], 0.0)
+        self.assertIn(result["best_device"], [DeviceType.GPU, DeviceType.CPU, DeviceType.HYBRID])
+
+        # If a Vulkan GPU is present, verify GPU and Hybrid throughput
+        backend = VideoUpscalerBackend()
+        if len(backend.get_gpu_devices()) > 0:
+            self.assertGreater(result["gpu_fps"], 0.0)
+            self.assertGreater(result["hybrid_fps"], 0.0)
 
 
 if __name__ == "__main__":

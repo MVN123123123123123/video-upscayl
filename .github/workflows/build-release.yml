@@ -42,6 +42,7 @@ jobs:
             ninja-build \
             libvulkan-dev \
             vulkan-tools \
+            mesa-vulkan-drivers \
             glslang-tools \
             glslang-dev \
             spirv-tools \

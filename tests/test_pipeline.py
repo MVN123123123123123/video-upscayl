@@ -30,7 +30,33 @@ class TestPipeline(unittest.TestCase):
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 
+    def test_pipeline_cpu_upscale(self):
+        cpu_output = os.path.join(self.temp_dir, "output_cpu.mp4")
+        pipeline = VideoUpscalePipeline(
+            input_path=self.input_video,
+            output_path=cpu_output,
+            model_name="realesr-animevideov3-x2",
+            scale=2,
+            device_type=DeviceType.CPU,
+            tile_size=120,
+            tile_pad=10
+        )
+        stats = pipeline.run(max_frames=10)
+
+        self.assertEqual(stats["processed_frames"], 10)
+        self.assertTrue(os.path.exists(cpu_output))
+        self.assertGreater(os.path.getsize(cpu_output), 0)
+
+        meta = probe_video(cpu_output)
+        self.assertEqual(meta["width"], 480)
+        self.assertEqual(meta["height"], 272)
+        self.assertEqual(meta["audio_stream_count"], 1)
+
     def test_pipeline_gpu_upscale(self):
+        from video_upscaler.backend_bridge import VideoUpscalerBackend
+        if len(VideoUpscalerBackend().get_gpu_devices()) == 0:
+            self.skipTest("No Vulkan GPU available on this system")
+
         pipeline = VideoUpscalePipeline(
             input_path=self.input_video,
             output_path=self.output_video,
@@ -52,6 +78,10 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(meta["audio_stream_count"], 1)
 
     def test_pipeline_hybrid_upscale(self):
+        from video_upscaler.backend_bridge import VideoUpscalerBackend
+        if len(VideoUpscalerBackend().get_gpu_devices()) == 0:
+            self.skipTest("No Vulkan GPU available on this system")
+
         hybrid_output = os.path.join(self.temp_dir, "output_hybrid.mp4")
         pipeline = VideoUpscalePipeline(
             input_path=self.input_video,
@@ -72,18 +102,22 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(meta["audio_stream_count"], 1)
 
     def test_pipeline_realcugan_upscale(self):
+        from video_upscaler.backend_bridge import VideoUpscalerBackend
+        has_gpu = len(VideoUpscalerBackend().get_gpu_devices()) > 0
         cugan_output = os.path.join(self.temp_dir, "output_cugan.mp4")
         pipeline = VideoUpscalePipeline(
             input_path=self.input_video,
             output_path=cugan_output,
             model_name="cugan",
-            device_type=DeviceType.GPU,
+            device_type=DeviceType.GPU if has_gpu else DeviceType.CPU,
             tile_size=120
         )
         self.assertEqual(pipeline.tile_pad, 18)
-        stats = pipeline.run()
+        frames_to_run = None if has_gpu else 10
+        stats = pipeline.run(max_frames=frames_to_run)
 
-        self.assertEqual(stats["processed_frames"], 30)
+        expected_count = 30 if has_gpu else 10
+        self.assertEqual(stats["processed_frames"], expected_count)
         self.assertTrue(os.path.exists(cugan_output))
         meta = probe_video(cugan_output)
         self.assertEqual(meta["width"], 480)

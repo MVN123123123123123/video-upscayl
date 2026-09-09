@@ -168,9 +168,18 @@ VIDEOUPSCALER_API videoupscaler_t* videoupscaler_create_with_gpu(
         target_gpu = 0;
     }
 
+    int effective_device = device_type;
+    if (effective_device == DEVICE_AUTO) {
+        if (gpu_count > 0) {
+            effective_device = DEVICE_GPU;
+        } else {
+            effective_device = DEVICE_CPU;
+        }
+    }
+
     auto* ctx = new videoupscaler_ctx();
     ctx->scale = scale;
-    ctx->device_type = device_type;
+    ctx->device_type = effective_device;
     ctx->tile_size = (tile_size > 0) ? tile_size : 0;
     ctx->tile_pad = (tile_pad >= 0) ? tile_pad : 10;
     ctx->num_threads = num_threads;
@@ -178,17 +187,25 @@ VIDEOUPSCALER_API videoupscaler_t* videoupscaler_create_with_gpu(
     ctx->model_path = model_path;
     ctx->param_path = param_path;
 
-    if (device_type == DEVICE_GPU || device_type == DEVICE_HYBRID) {
+    if (effective_device == DEVICE_GPU || effective_device == DEVICE_HYBRID) {
         ctx->gpu_worker = std::make_unique<InferenceWorker>();
         if (!ctx->gpu_worker->init(model_path, param_path, true, target_gpu, 0)) {
-            std::cerr << "[VideoUpscaler] Failed to initialize GPU worker on device " << target_gpu << std::endl;
-            delete ctx;
-            release_gpu_instance();
-            return nullptr;
+            if (device_type == DEVICE_AUTO) {
+                // If AUTO fell back from GPU init failure, switch to CPU
+                std::cerr << "[VideoUpscaler] GPU init failed in AUTO mode, falling back to CPU" << std::endl;
+                ctx->gpu_worker.reset();
+                ctx->device_type = DEVICE_CPU;
+                effective_device = DEVICE_CPU;
+            } else {
+                std::cerr << "[VideoUpscaler] Failed to initialize GPU worker on device " << target_gpu << std::endl;
+                delete ctx;
+                release_gpu_instance();
+                return nullptr;
+            }
         }
     }
 
-    if (device_type == DEVICE_CPU || device_type == DEVICE_HYBRID) {
+    if (effective_device == DEVICE_CPU || effective_device == DEVICE_HYBRID) {
         ctx->cpu_worker = std::make_unique<InferenceWorker>();
         if (!ctx->cpu_worker->init(model_path, param_path, false, 0, num_threads)) {
             std::cerr << "[VideoUpscaler] Failed to initialize CPU worker" << std::endl;
