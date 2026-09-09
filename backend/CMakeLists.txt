@@ -68,6 +68,9 @@ else()
         )
     endif()
 
+    find_library(SPIRV_TOOLS_OPT_LIB NAMES SPIRV-Tools-opt libSPIRV-Tools-opt)
+    find_library(SPIRV_TOOLS_LIB NAMES SPIRV-Tools libSPIRV-Tools)
+
     target_link_libraries(videoupscaler PRIVATE
         ncnn
         glslang
@@ -75,6 +78,18 @@ else()
         Vulkan::Vulkan
         OpenMP::OpenMP_CXX
     )
+
+    if(SPIRV_TOOLS_OPT_LIB)
+        target_link_libraries(videoupscaler PRIVATE ${SPIRV_TOOLS_OPT_LIB})
+    else()
+        target_link_libraries(videoupscaler PRIVATE SPIRV-Tools-opt)
+    endif()
+
+    if(SPIRV_TOOLS_LIB)
+        target_link_libraries(videoupscaler PRIVATE ${SPIRV_TOOLS_LIB})
+    else()
+        target_link_libraries(videoupscaler PRIVATE SPIRV-Tools)
+    endif()
 endif()
 
 if(UNIX AND NOT APPLE)
