@@ -103,6 +103,16 @@ def build_standalone(mode="onefile"):
     else:
         print("[WARNING] videoupscaler.dll not found. Compiling native backend is recommended.")
 
+    # Locate OpenMP runtime (vcomp140.dll) if present
+    for vcomp_candidate in [
+        os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "vcomp140.dll"),
+        os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32", "vcomp140.dll"),
+    ]:
+        if os.path.exists(vcomp_candidate):
+            print(f"[INFO] Bundling MSVC OpenMP runtime: {vcomp_candidate}")
+            bin_args.extend(["--add-binary", f"{vcomp_candidate};."])
+            break
+
     # 2. Locate / bundle FFmpeg and FFprobe
     try:
         ffmpeg_bin, ffprobe_bin = ensure_windows_ffmpeg()

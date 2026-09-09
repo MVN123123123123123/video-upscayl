@@ -136,6 +136,11 @@ VIDEOUPSCALER_API int videoupscaler_get_gpu_type(int device_index);
 VIDEOUPSCALER_API const char* videoupscaler_get_cpu_simd_info();
 
 /**
+ * Returns diagnostic string regarding Vulkan initialization and GPU device detection.
+ */
+VIDEOUPSCALER_API const char* videoupscaler_get_gpu_diagnostic();
+
+/**
  * Destroys and cleans up the upscaler instance.
  */
 VIDEOUPSCALER_API void videoupscaler_destroy(videoupscaler_t* handle);

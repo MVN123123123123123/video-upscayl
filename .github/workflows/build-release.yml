@@ -158,6 +158,7 @@ jobs:
           Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
           Expand-Archive -Path $zipFile -DestinationPath $extractDir -Force
           Copy-Item -Recurse -Force "$extractDir\ncnn-20260526-windows-vs2022\*" "third_party\ncnn\"
+          Copy-Item -Recurse -Force "third_party\ncnn\x64\include\*" "third_party\ncnn\include\"
           Remove-Item -Force $zipFile
           Remove-Item -Recurse -Force $extractDir
           Write-Host "NCNN Windows libraries deployed successfully."

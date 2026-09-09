@@ -47,14 +47,16 @@ bool InferenceWorker::init(
         }
 
         net_.opt.use_vulkan_compute = true;
-        // Dynamically probe hardware capabilities for NVIDIA, AMD, Intel, and other GPU vendors
+        net_.set_vulkan_device(gpu_id_);
         net_.opt.use_fp16_packed = vkdev->info.support_fp16_packed();
         net_.opt.use_fp16_storage = vkdev->info.support_fp16_storage();
-        net_.opt.use_fp16_arithmetic = vkdev->info.support_fp16_arithmetic();
+        // Real-ESRGAN and Real-CUGAN models require fp16 arithmetic to be disabled
+        // to avoid numerical NaN overflow and driver shader compile issues across vendors.
+        net_.opt.use_fp16_arithmetic = false;
         net_.opt.use_packing_layout = true;
-        net_.opt.use_shader_local_memory = true;
-        net_.opt.use_cooperative_matrix = vkdev->info.support_cooperative_matrix();
-        net_.set_vulkan_device(gpu_id_);
+        net_.opt.use_shader_local_memory = false;
+        // Cooperative matrix is designed for LLM/matmul and causes pipeline creation failure on RTX/Arc GPUs
+        net_.opt.use_cooperative_matrix = false;
     } else {
         net_.opt.use_vulkan_compute = false;
         int threads = num_threads;

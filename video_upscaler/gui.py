@@ -301,7 +301,8 @@ class VideoUpscalerGUI:
             for g in self.gpu_devices:
                 self._log(f"GPU [{g['id']}]: {g['name']} [Vendor: {g['vendor']}, Type: {g['type']}]")
         else:
-            self._log("GPU: None detected (running CPU mode)")
+            diag = hw.get("gpu_diag", "No details")
+            self._log(f"GPU: None detected (running CPU mode) [Diagnostic: {diag}]")
         self._log("Ready.\n")
 
     def _get_selected_gpu_id(self) -> int:
@@ -472,6 +473,13 @@ class VideoUpscalerGUI:
                     model_info = MODEL_REGISTRY.get(model_name, {})
                     actual_device = auto_select_device(model_info, meta["width"], meta["height"], gpu_id=gpu_id)
                     self._log(f"Auto-selected device: {actual_device.name}")
+
+                if actual_device == DeviceType.GPU:
+                    self._log(f"Inference Mode: Hardware GPU (Vulkan)")
+                elif actual_device == DeviceType.HYBRID:
+                    self._log(f"Inference Mode: Hybrid (GPU + CPU)")
+                else:
+                    self._log(f"Inference Mode: CPU (SIMD Multi-Core)")
 
                 max_frames = None
                 if self.preview_var.get():

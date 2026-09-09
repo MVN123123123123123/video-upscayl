@@ -265,8 +265,10 @@ def get_hardware_info() -> Dict[str, Any]:
         backend = VideoUpscalerBackend()
         info["gpus"] = backend.get_gpu_devices()
         info["cpu_simd"] = backend.get_cpu_simd_info()
+        info["gpu_diag"] = backend.get_gpu_diagnostic_info()
     except Exception as e:
         info["gpu_error"] = str(e)
+        info["gpu_diag"] = f"Backend load exception: {e}"
         info["cpu_simd"] = "Standard SIMD"
 
     return info

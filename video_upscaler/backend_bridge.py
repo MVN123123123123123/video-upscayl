@@ -88,6 +88,13 @@ class VideoUpscalerBackend:
                     os.add_dll_directory(dll_dir)
                 except Exception:
                     pass
+            # Explicitly ensure Windows System32 is in the DLL search path for vulkan-1.dll
+            sys32 = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+            if os.path.exists(sys32) and hasattr(os, "add_dll_directory"):
+                try:
+                    os.add_dll_directory(sys32)
+                except Exception:
+                    pass
             vulkan_sdk = os.environ.get("VULKAN_SDK")
             if vulkan_sdk and hasattr(os, "add_dll_directory"):
                 vk_bin = os.path.join(vulkan_sdk, "bin")
@@ -123,6 +130,11 @@ class VideoUpscalerBackend:
         if hasattr(self._lib, "videoupscaler_get_cpu_simd_info"):
             self._lib.videoupscaler_get_cpu_simd_info.argtypes = []
             self._lib.videoupscaler_get_cpu_simd_info.restype = ctypes.c_char_p
+
+        # const char* videoupscaler_get_gpu_diagnostic();
+        if hasattr(self._lib, "videoupscaler_get_gpu_diagnostic"):
+            self._lib.videoupscaler_get_gpu_diagnostic.argtypes = []
+            self._lib.videoupscaler_get_gpu_diagnostic.restype = ctypes.c_char_p
 
         # videoupscaler_t* videoupscaler_create(...)
         self._lib.videoupscaler_create.argtypes = [
@@ -201,6 +213,14 @@ class VideoUpscalerBackend:
             if res:
                 return res.decode("utf-8")
         return "Standard SIMD"
+
+    def get_gpu_diagnostic_info(self) -> str:
+        """Returns diagnostic details regarding Vulkan initialization and GPU device detection."""
+        if hasattr(self._lib, "videoupscaler_get_gpu_diagnostic"):
+            res = self._lib.videoupscaler_get_gpu_diagnostic()
+            if res:
+                return res.decode("utf-8")
+        return "GPU Diagnostic unavailable"
 
     def get_gpu_devices(self) -> List[Dict[str, Any]]:
         """Returns list of all available GPU devices with vendor and type details."""

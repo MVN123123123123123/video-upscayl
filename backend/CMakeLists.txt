@@ -13,16 +13,24 @@ find_package(Vulkan REQUIRED)
 
 set(NCNN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/ncnn")
 
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${NCNN_ROOT}/include
-    ${NCNN_ROOT}/x64/include
-)
-
-link_directories(
-    ${NCNN_ROOT}/lib
-    ${NCNN_ROOT}/x64/lib
-)
+if(WIN32)
+    # On Windows, strictly use prebuilt Windows VS2022 ncnn headers and libs to prevent Linux GCC ABI collisions
+    include_directories(
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${NCNN_ROOT}/x64/include
+    )
+    link_directories(
+        ${NCNN_ROOT}/x64/lib
+    )
+else()
+    include_directories(
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${NCNN_ROOT}/include
+    )
+    link_directories(
+        ${NCNN_ROOT}/lib
+    )
+endif()
 
 add_library(videoupscaler SHARED
     src/engine.cpp

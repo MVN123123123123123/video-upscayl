@@ -16,9 +16,13 @@ echo ====================================================================
 if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 
 rem Check / fetch prebuilt NCNN Windows libraries if missing
-if not exist "%ROOT_DIR%\third_party\ncnn\x64\lib\ncnn.lib" if not exist "%ROOT_DIR%\third_party\ncnn\lib\ncnn.lib" (
+if not exist "%ROOT_DIR%\third_party\ncnn\x64\lib\ncnn.lib" (
     echo [INFO] Downloading prebuilt NCNN Windows VS2022 libraries...
     powershell -Command "Invoke-WebRequest -Uri 'https://github.com/Tencent/ncnn/releases/download/20260526/ncnn-20260526-windows-vs2022.zip' -OutFile '%ROOT_DIR%\third_party\ncnn_win.zip'; Expand-Archive -Path '%ROOT_DIR%\third_party\ncnn_win.zip' -DestinationPath '%ROOT_DIR%\third_party\ncnn_extracted' -Force; Copy-Item -Recurse -Force '%ROOT_DIR%\third_party\ncnn_extracted\ncnn-20260526-windows-vs2022\*' '%ROOT_DIR%\third_party\ncnn\'; Remove-Item -Force '%ROOT_DIR%\third_party\ncnn_win.zip'; Remove-Item -Recurse -Force '%ROOT_DIR%\third_party\ncnn_extracted'"
+)
+if exist "%ROOT_DIR%\third_party\ncnn\x64\include" (
+    echo [INFO] Syncing Windows x64 NCNN headers to avoid Linux ABI header collisions...
+    powershell -Command "Copy-Item -Recurse -Force '%ROOT_DIR%\third_party\ncnn\x64\include\*' '%ROOT_DIR%\third_party\ncnn\include\'"
 )
 
 cd /d "%BUILD_DIR%"

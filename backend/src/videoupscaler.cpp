@@ -16,12 +16,28 @@
 
 static std::atomic<bool> g_gpu_initialized{false};
 static std::mutex g_gpu_init_mutex;
+static int g_gpu_create_code = -999;
+static std::string g_gpu_diag_info = "Not initialized";
 
 static void ensure_gpu_instance() {
     if (!g_gpu_initialized.load(std::memory_order_acquire)) {
         std::lock_guard<std::mutex> lock(g_gpu_init_mutex);
         if (!g_gpu_initialized.load(std::memory_order_relaxed)) {
-            ncnn::create_gpu_instance();
+            g_gpu_create_code = ncnn::create_gpu_instance();
+            int count = ncnn::get_gpu_count();
+            std::cerr << "[VideoUpscaler] ncnn::create_gpu_instance() returned "
+                      << g_gpu_create_code << " | Detected Vulkan GPUs: " << count << std::endl;
+
+            g_gpu_diag_info = "create_gpu_code=" + std::to_string(g_gpu_create_code) + "; gpu_count=" + std::to_string(count);
+            for (int i = 0; i < count; i++) {
+                const ncnn::VulkanDevice* dev = ncnn::get_gpu_device(i);
+                if (dev) {
+                    std::cerr << "[VideoUpscaler] GPU [" << i << "]: " << dev->info.device_name()
+                              << " (Type: " << dev->info.type() << ", Vendor: 0x"
+                              << std::hex << dev->info.vendor_id() << std::dec << ")" << std::endl;
+                    g_gpu_diag_info += " | GPU[" + std::to_string(i) + "]=" + std::string(dev->info.device_name());
+                }
+            }
             g_gpu_initialized.store(true, std::memory_order_release);
         }
     }
@@ -124,6 +140,11 @@ VIDEOUPSCALER_API const char* videoupscaler_get_cpu_simd_info() {
 #else
     return "Standard Multi-Core";
 #endif
+}
+
+VIDEOUPSCALER_API const char* videoupscaler_get_gpu_diagnostic() {
+    ensure_gpu_instance();
+    return g_gpu_diag_info.c_str();
 }
 
 VIDEOUPSCALER_API videoupscaler_t* videoupscaler_create(

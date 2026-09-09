@@ -35,6 +35,11 @@ class TestBackend(unittest.TestCase):
         self.assertGreater(len(first_gpu["name"]), 0)
         self.assertGreater(len(first_gpu["vendor"]), 0)
 
+    def test_gpu_diagnostic_telemetry(self):
+        diag = self.backend.get_gpu_diagnostic_info()
+        self.assertIsInstance(diag, str)
+        self.assertGreater(len(diag), 0)
+
     def test_auto_upscale(self):
         session = self.backend.create_instance(
             model_path=self.model_bin,
