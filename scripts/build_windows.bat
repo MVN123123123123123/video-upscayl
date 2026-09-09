@@ -23,6 +23,16 @@ if not exist "%ROOT_DIR%\third_party\ncnn\x64\lib\ncnn.lib" if not exist "%ROOT_
 
 cd /d "%BUILD_DIR%"
 
+rem Clean stale CMakeCache if generated on another machine or folder
+if exist "%BUILD_DIR%\CMakeCache.txt" (
+    findstr /c:"%BUILD_DIR%" "%BUILD_DIR%\CMakeCache.txt" >nul 2>nul
+    if errorlevel 1 (
+        echo [INFO] Cleaning stale CMakeCache from another machine or directory...
+        del /f /q "%BUILD_DIR%\CMakeCache.txt" 2>nul
+        rmdir /s /q "%BUILD_DIR%\CMakeFiles" 2>nul
+    )
+)
+
 rem Check for Vulkan SDK
 if "%VULKAN_SDK%"=="" (
     echo [WARNING] VULKAN_SDK environment variable is not set.
