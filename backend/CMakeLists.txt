@@ -31,6 +31,8 @@ add_library(videoupscaler SHARED
 
 target_compile_definitions(videoupscaler PRIVATE
     VIDEOUPSCALER_EXPORTS
+    NOMINMAX
+    WIN32_LEAN_AND_MEAN
 )
 
 if(MSVC)

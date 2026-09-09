@@ -1,6 +1,10 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <string>
 #include <vector>
 #include <memory>

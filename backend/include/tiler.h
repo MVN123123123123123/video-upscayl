@@ -1,6 +1,10 @@
 #ifndef TILER_H
 #define TILER_H
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <vector>
 #include <algorithm>
 #include <cstdint>
@@ -44,8 +48,8 @@ public:
                 TileInfo t;
                 t.x0 = tx * tile_size;
                 t.y0 = ty * tile_size;
-                t.w = std::min(tile_size, in_w - t.x0);
-                t.h = std::min(tile_size, in_h - t.y0);
+                t.w = (std::min)(tile_size, in_w - t.x0);
+                t.h = (std::min)(tile_size, in_h - t.y0);
                 t.pad = tile_pad;
                 t.padded_w = t.w + 2 * tile_pad;
                 t.padded_h = t.h + 2 * tile_pad;
@@ -119,14 +123,14 @@ public:
         if (actual_tile_w <= 0) actual_tile_w = t.padded_w * scale;
         if (actual_tile_h <= 0) actual_tile_h = t.padded_h * scale;
 
-        int crop_x = std::max(0, (actual_tile_w - valid_w) / 2);
-        int crop_y = std::max(0, (actual_tile_h - valid_h) / 2);
+        int crop_x = (std::max)(0, (actual_tile_w - valid_w) / 2);
+        int crop_y = (std::max)(0, (actual_tile_h - valid_h) / 2);
         int dst_x0 = t.x0 * scale;
         int dst_y0 = t.y0 * scale;
         int tile_stride = actual_tile_w * 3;
         int out_stride = out_w * 3;
 
-        int copy_bytes = std::min(valid_w, out_w - dst_x0) * 3;
+        int copy_bytes = (std::min)(valid_w, out_w - dst_x0) * 3;
         if (copy_bytes <= 0) return;
 
         #if defined(_OPENMP)

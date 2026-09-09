@@ -1,3 +1,7 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include "videoupscaler.h"
 #include "engine.h"
 #include "tiler.h"
@@ -424,7 +428,7 @@ VIDEOUPSCALER_API int videoupscaler_benchmark_with_gpu(
 
     // 2. Benchmark CPU
     if (out_cpu_fps) {
-        int cpu_frames = std::min(num_frames, 3);
+        int cpu_frames = (std::min)(num_frames, 3);
         videoupscaler_t* ctx_cpu = videoupscaler_create(
             model_path, param_path, scale, DEVICE_CPU, 256, 10, 0
         );
