@@ -109,22 +109,34 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Vulkan SDK
+        timeout-minutes: 5
         shell: pwsh
         run: |
           Write-Host "Downloading Vulkan SDK from LunarG..."
           $installer = "$env:TEMP\VulkanSDK-Installer.exe"
-          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/1.4.304.0/windows/VulkanSDK-1.4.304.0-Installer.exe" -OutFile $installer
-          Write-Host "Installing Vulkan SDK silently..."
-          Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+          curl.exe -L -f -s -S -o $installer "https://sdk.lunarg.com/sdk/download/1.4.304.0/windows/VulkanSDK-1.4.304.0-Installer.exe"
+          Write-Host "Installing Vulkan SDK (QtIFW unattended copy_only mode)..."
+          $args = @(
+              "--root", "C:\VulkanSDK",
+              "--accept-licenses",
+              "--default-answer",
+              "--confirm-command",
+              "install",
+              "copy_only=1"
+          )
+          $p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru -NoNewWindow
+          Write-Host "Vulkan SDK installer finished with exit code: $($p.ExitCode)"
           Remove-Item -Force $installer
-          if (Test-Path "C:\VulkanSDK") {
-              $sdkDir = (Get-ChildItem -Path "C:\VulkanSDK" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
-              Write-Host "Vulkan SDK successfully installed at: $sdkDir"
-              "VULKAN_SDK=$sdkDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-              "$sdkDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          } else {
-              Write-Host "Warning: C:\VulkanSDK not found, build script will check PATH."
+          $sdkDir = "C:\VulkanSDK"
+          if (Test-Path "C:\VulkanSDK\Include\vulkan\vulkan.h") {
+              $sdkDir = "C:\VulkanSDK"
+          } elseif (Test-Path "C:\VulkanSDK") {
+              $sub = Get-ChildItem -Path "C:\VulkanSDK" -Directory | Where-Object { Test-Path "$($_.FullName)\Include\vulkan\vulkan.h" } | Select-Object -First 1
+              if ($sub) { $sdkDir = $sub.FullName }
           }
+          Write-Host "Vulkan SDK located at: $sdkDir"
+          "VULKAN_SDK=$sdkDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$sdkDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Download Prebuilt NCNN Windows VS2022 Libraries
         shell: pwsh

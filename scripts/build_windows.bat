@@ -37,6 +37,10 @@ rem Check for Vulkan SDK
 if "%VULKAN_SDK%"=="" (
     echo [WARNING] VULKAN_SDK environment variable is not set.
     echo Searching standard Vulkan SDK directory...
+    if exist "C:\VulkanSDK\Include" (
+        set "VULKAN_SDK=C:\VulkanSDK"
+        goto :found_vulkan
+    )
     if exist "C:\VulkanSDK" (
         for /f "delims=" %%D in ('dir /b /ad /o-n "C:\VulkanSDK"') do (
             set "VULKAN_SDK=C:\VulkanSDK\%%D"
