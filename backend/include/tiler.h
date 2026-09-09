@@ -130,13 +130,21 @@ public:
         int tile_stride = actual_tile_w * 3;
         int out_stride = out_w * 3;
 
-        int copy_bytes = (std::min)(valid_w, out_w - dst_x0) * 3;
+        // Defensive clamping: prevent reading beyond actual tile width
+        int avail_tile_w = (std::max)(0, actual_tile_w - crop_x);
+        int copy_pixels = (std::min)(valid_w, (std::max)(0, out_w - dst_x0));
+        copy_pixels = (std::min)(copy_pixels, avail_tile_w);
+        int copy_bytes = copy_pixels * 3;
         if (copy_bytes <= 0) return;
 
+        // Defensive clamping: prevent reading beyond actual tile height
+        int avail_tile_h = (std::max)(0, actual_tile_h - crop_y);
+        int max_valid_h = (std::min)(valid_h, avail_tile_h);
+
         #if defined(_OPENMP)
-        #pragma omp parallel for schedule(static) if(valid_h > 16)
+        #pragma omp parallel for schedule(static) if(max_valid_h > 16)
         #endif
-        for (int y = 0; y < valid_h; y++) {
+        for (int y = 0; y < max_valid_h; y++) {
             int dst_y = dst_y0 + y;
             if (dst_y < out_h) {
                 const uint8_t* src_ptr = tile_rgb + (crop_y + y) * tile_stride + crop_x * 3;

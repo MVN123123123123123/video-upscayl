@@ -10,6 +10,7 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
     "realesr-animevideov3-x2": {
         "name": "realesr-animevideov3-x2",
         "scale": 2,
+        "tile_pad": 10,
         "type": "anime_video",
         "description": "Ultra-fast anime & cartoon video upscaler (2x)",
         "bin_name": "realesr-animevideov3-x2.bin",
@@ -20,6 +21,7 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
     "realesr-animevideov3-x3": {
         "name": "realesr-animevideov3-x3",
         "scale": 3,
+        "tile_pad": 10,
         "type": "anime_video",
         "description": "Ultra-fast anime & cartoon video upscaler (3x)",
         "bin_name": "realesr-animevideov3-x3.bin",
@@ -29,6 +31,7 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
     "realesr-animevideov3-x4": {
         "name": "realesr-animevideov3-x4",
         "scale": 4,
+        "tile_pad": 10,
         "type": "anime_video",
         "description": "Ultra-fast anime & cartoon video upscaler (4x)",
         "bin_name": "realesr-animevideov3-x4.bin",
@@ -38,6 +41,7 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
     "realesrgan-x4plus": {
         "name": "realesrgan-x4plus",
         "scale": 4,
+        "tile_pad": 10,
         "type": "general",
         "description": "High-fidelity realistic photo & live action video upscaler (4x)",
         "bin_name": "realesrgan-x4plus.bin",
@@ -47,6 +51,7 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
     "realesrgan-x4plus-anime": {
         "name": "realesrgan-x4plus-anime",
         "scale": 4,
+        "tile_pad": 10,
         "type": "anime_art",
         "description": "High-fidelity anime illustration upscaler (4x)",
         "bin_name": "realesrgan-x4plus-anime.bin",

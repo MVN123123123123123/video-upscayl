@@ -43,13 +43,24 @@ class VideoUpscalePipeline:
         self.scale = self.model_info["scale"]
         self.device_type = device_type
         self.tile_size = tile_size
-        self.tile_pad = tile_pad if tile_pad is not None else self.model_info.get("tile_pad", 10)
         self.num_threads = num_threads
         self.gpu_id = gpu_id
         self.codec = codec
         self.crf = crf
         self.preset = preset
         self.console = console or Console()
+
+        min_pad = self.model_info.get("tile_pad", 10)
+        if tile_pad is None:
+            self.tile_pad = min_pad
+        elif tile_pad < min_pad:
+            self.console.print(
+                f"[yellow]Notice: Specified tile_pad ({tile_pad}) is less than model minimum ({min_pad}) "
+                f"for '{self.model_info['name']}'. Adjusting tile_pad to {min_pad} to prevent tile seam/black bar artifacts.[/yellow]"
+            )
+            self.tile_pad = min_pad
+        else:
+            self.tile_pad = tile_pad
 
         # Probe input
         self.video_meta = probe_video(self.input_path)

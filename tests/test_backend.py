@@ -195,6 +195,44 @@ class TestBackend(unittest.TestCase):
         self.assertLess(mean_diff, 5.0, f"Real-CUGAN seam difference too high: {mean_diff}")
         session.close()
 
+    def test_realcugan_x3_tile_seam_and_zero_black_bars(self):
+        cugan_bin = "models/realcugan-pro-x3-denoise3x.bin"
+        cugan_param = "models/realcugan-pro-x3-denoise3x.param"
+        if not os.path.exists(cugan_bin) or not os.path.exists(cugan_param):
+            cugan_bin = "models/realcugan-se-x3.bin"
+            cugan_param = "models/realcugan-se-x3.param"
+        if not os.path.exists(cugan_bin) or not os.path.exists(cugan_param):
+            self.skipTest("Real-CUGAN 3x model files not found locally")
+
+        dev = DeviceType.GPU if len(self.backend.get_gpu_devices()) > 0 else DeviceType.CPU
+
+        session = self.backend.create_instance(
+            model_path=cugan_bin,
+            param_path=cugan_param,
+            scale=3,
+            device_type=dev,
+            tile_size=100,
+            tile_pad=14
+        )
+        # 200x200 image across 4 tiles
+        x = np.linspace(60, 210, 200, dtype=np.uint8)
+        y = np.linspace(60, 210, 200, dtype=np.uint8)
+        xx, yy = np.meshgrid(x, y)
+        img = np.stack([xx, yy, xx], axis=-1).astype(np.uint8)
+
+        out = session.process_frame(img)
+        self.assertEqual(out.shape, (600, 600, 3))
+
+        # Check there are 0 black pixels anywhere in the upscaled output
+        black_pixels = np.all(out == 0, axis=-1)
+        self.assertEqual(int(np.sum(black_pixels)), 0, "Real-CUGAN 3x produced black bar/edge pixels!")
+
+        # Check seam continuity at tile boundary x=300 (which corresponds to x=100 * scale 3)
+        seam_diff = np.abs(out[:, 299, :].astype(int) - out[:, 300, :].astype(int))
+        mean_diff = np.mean(seam_diff)
+        self.assertLess(mean_diff, 5.0, f"Real-CUGAN 3x seam difference too high: {mean_diff}")
+        session.close()
+
 
 if __name__ == "__main__":
     unittest.main()

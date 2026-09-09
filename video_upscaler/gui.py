@@ -29,15 +29,16 @@ class VideoUpscalerGUI:
         elif "classic" in available_themes:
             self.style.theme_use("classic")
 
-        # Variables
+        default_model = "realesr-animevideov3-x2"
+        default_pad = MODEL_REGISTRY.get(default_model, {}).get("tile_pad", 10)
         self.input_file_var = tk.StringVar()
         self.output_file_var = tk.StringVar()
-        self.model_var = tk.StringVar(value="realesr-animevideov3-x2")
+        self.model_var = tk.StringVar(value=default_model)
         self.output_manually_edited = False
         self.device_var = tk.StringVar(value="auto")
         self.gpu_select_var = tk.StringVar(value="Auto (Best Discrete)")
         self.tile_size_var = tk.StringVar(value="256")
-        self.tile_pad_var = tk.StringVar(value="10")
+        self.tile_pad_var = tk.StringVar(value=str(default_pad))
         self.compare_var = tk.BooleanVar(value=False)
         self.preview_var = tk.BooleanVar(value=False)
         self.codec_var = tk.StringVar(value="libx264")
@@ -360,6 +361,9 @@ class VideoUpscalerGUI:
 
     def _on_model_changed(self):
         self._update_output_path()
+        model_name = self.model_var.get()
+        rec_pad = MODEL_REGISTRY.get(model_name, {}).get("tile_pad", 10)
+        self.tile_pad_var.set(str(rec_pad))
 
     def _browse_output(self):
         file_path = filedialog.asksaveasfilename(
@@ -435,6 +439,12 @@ class VideoUpscalerGUI:
             return
 
         model_name = self.model_var.get()
+        min_pad = MODEL_REGISTRY.get(model_name, {}).get("tile_pad", 10)
+        if tile_pad < min_pad:
+            tile_pad = min_pad
+            self.tile_pad_var.set(str(min_pad))
+            self._log(f"Notice: Tile padding increased to {min_pad} (model required minimum for '{model_name}').")
+
         dev_str = self.device_var.get()
         gpu_id = self._get_selected_gpu_id()
 

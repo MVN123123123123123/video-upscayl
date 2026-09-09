@@ -124,6 +124,43 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(meta["height"], 272)
         self.assertEqual(meta["audio_stream_count"], 1)
 
+    def test_pipeline_tile_pad_minimum_enforcement(self):
+        # When tile_pad is less than model minimum (18 for 2x), pipeline clamps it to 18
+        pipeline_2x = VideoUpscalePipeline(
+            input_path=self.input_video,
+            output_path=os.path.join(self.temp_dir, "pad_test_2x.mp4"),
+            model_name="realcugan-se-x2",
+            tile_pad=10
+        )
+        self.assertEqual(pipeline_2x.tile_pad, 18)
+
+        # When tile_pad is less than model minimum (14 for 3x), pipeline clamps it to 14
+        pipeline_3x = VideoUpscalePipeline(
+            input_path=self.input_video,
+            output_path=os.path.join(self.temp_dir, "pad_test_3x.mp4"),
+            model_name="realcugan-pro-x3-denoise3x",
+            tile_pad=10
+        )
+        self.assertEqual(pipeline_3x.tile_pad, 14)
+
+        # When tile_pad is None, pipeline defaults to model recommended pad
+        pipeline_auto = VideoUpscalePipeline(
+            input_path=self.input_video,
+            output_path=os.path.join(self.temp_dir, "pad_test_auto.mp4"),
+            model_name="realcugan-pro-x3-denoise3x",
+            tile_pad=None
+        )
+        self.assertEqual(pipeline_auto.tile_pad, 14)
+
+        # When tile_pad >= model minimum, user-specified value is respected
+        pipeline_custom = VideoUpscalePipeline(
+            input_path=self.input_video,
+            output_path=os.path.join(self.temp_dir, "pad_test_custom.mp4"),
+            model_name="realcugan-pro-x3-denoise3x",
+            tile_pad=20
+        )
+        self.assertEqual(pipeline_custom.tile_pad, 20)
+
 
 if __name__ == "__main__":
     unittest.main()
