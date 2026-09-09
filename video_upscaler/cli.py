@@ -120,12 +120,12 @@ def benchmark_cmd(model, width, height, num_frames, gpu_id):
 @main.command(name="upscale")
 @click.option("-i", "--input", "input_file", required=True, type=click.Path(exists=True), help="Input video file path.")
 @click.option("-o", "--output", "output_file", type=click.Path(), help="Output video file path.")
-@click.option("-m", "--model", default=None, help="Model name (e.g. 4x-UltraSharp, realesr-animevideov3-x2, realesrgan-x4plus).")
+@click.option("-m", "--model", default=None, help="Model name (e.g. realcugan-se-x2, 4x-UltraSharp, realesr-animevideov3-x2, realesrgan-x4plus).")
 @click.option("-s", "--scale", type=int, default=None, help="Upscale factor (2, 3, or 4).")
 @click.option("-d", "--device", default="auto", type=click.Choice(["auto", "gpu", "cpu", "hybrid"], case_sensitive=False), help="Hardware acceleration device.")
 @click.option("--gpu-id", default=-1, type=int, help="Target GPU device index (-1 for auto/best).")
 @click.option("-t", "--tile-size", default=256, type=int, help="Tile size (0 to disable tiling).")
-@click.option("--tile-pad", default=10, type=int, help="Tile overlap padding in pixels.")
+@click.option("--tile-pad", default=None, type=int, help="Tile overlap padding in pixels (auto-detected per model if omitted).")
 @click.option("--threads", default=0, type=int, help="Number of CPU worker threads (0 for auto).")
 @click.option("-c", "--codec", default="libx264", help="Output video codec (e.g. libx264, libx265).")
 @click.option("--crf", default=18, type=int, help="Constant Rate Factor (0-51, lower is higher quality).")
@@ -206,8 +206,10 @@ def upscale_cmd(
     table.add_row("Duration", f"{meta['duration']:.2f}s ({meta['total_frames']} frames)")
     table.add_row("Model", f"{model_info['name']} ({chosen_scale}x)")
     table.add_row("Output Resolution", f"{meta['width'] * chosen_scale}x{meta['height'] * chosen_scale}")
+    resolved_pad = tile_pad if tile_pad is not None else model_info.get("tile_pad", 10)
+    pad_str = f"{resolved_pad}" if tile_pad is not None else f"{resolved_pad} (auto)"
     table.add_row("Device Mode", device_type.name)
-    table.add_row("Tiling Settings", f"tile_size={tile_size}, pad={tile_pad}")
+    table.add_row("Tiling Settings", f"tile_size={tile_size}, pad={pad_str}")
     table.add_row("Output Codec", f"{codec} (CRF {crf}, preset {preset})")
     table.add_row("Output File", str(output_file))
 
@@ -282,15 +284,32 @@ def upscale_cmd(
 def entry_point():
     """
     Main application entry point.
-    On Windows OS, GUI mode is launched automatically by default so everyday Windows users
-    never have to deal with command line interfaces.
+    - On Windows, or when run as a standalone AppImage, or when run without arguments,
+      the Graphical User Interface (GUI) is launched automatically so everyday users
+      never have to deal with command line interfaces.
+    - If CLI subcommands or '--cli' is passed, the CLI runs directly.
     """
-    if sys.platform == "win32" and "--cli" not in sys.argv:
+    if "--cli" in sys.argv:
+        sys.argv.remove("--cli")
+        main()
+        return
+
+    is_appimage = bool(os.environ.get("APPIMAGE") or os.environ.get("APPDIR"))
+    is_windows = sys.platform == "win32"
+
+    cli_subcommands = {"upscale", "info", "models", "benchmark", "gui", "--help", "-h", "--version"}
+    args = sys.argv[1:]
+
+    # If any CLI subcommand or help flag is passed, invoke CLI
+    if args and any(arg in cli_subcommands for arg in args):
+        main()
+        return
+
+    # Default to GUI for Windows, AppImage, or zero-argument invocation
+    if is_windows or is_appimage or not args:
         from .gui import launch_gui
         launch_gui()
     else:
-        if "--cli" in sys.argv:
-            sys.argv.remove("--cli")
         main()
 
 

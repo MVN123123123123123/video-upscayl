@@ -29,7 +29,7 @@ class VideoUpscalePipeline:
         scale: Optional[int] = None,
         device_type: DeviceType = DeviceType.GPU,
         tile_size: int = 256,
-        tile_pad: int = 10,
+        tile_pad: Optional[int] = None,
         num_threads: int = 0,
         gpu_id: int = -1,
         codec: str = "libx264",
@@ -43,7 +43,7 @@ class VideoUpscalePipeline:
         self.scale = self.model_info["scale"]
         self.device_type = device_type
         self.tile_size = tile_size
-        self.tile_pad = tile_pad
+        self.tile_pad = tile_pad if tile_pad is not None else self.model_info.get("tile_pad", 10)
         self.num_threads = num_threads
         self.gpu_id = gpu_id
         self.codec = codec

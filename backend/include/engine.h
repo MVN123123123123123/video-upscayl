@@ -34,6 +34,16 @@ public:
         int scale
     );
 
+    int process_tile(
+        const uint8_t* in_rgb,
+        int w,
+        int h,
+        uint8_t* out_rgb,
+        int& actual_out_w,
+        int& actual_out_h,
+        int scale
+    );
+
     bool is_gpu() const { return use_gpu_; }
     int device_id() const { return gpu_id_; }
 

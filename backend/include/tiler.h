@@ -29,9 +29,9 @@ public:
             t.y0 = 0;
             t.w = in_w;
             t.h = in_h;
-            t.pad = 0;
-            t.padded_w = in_w;
-            t.padded_h = in_h;
+            t.pad = tile_pad;
+            t.padded_w = in_w + 2 * tile_pad;
+            t.padded_h = in_h + 2 * tile_pad;
             tiles.push_back(t);
             return tiles;
         }
@@ -110,15 +110,20 @@ public:
         int scale,
         uint8_t* out_rgb,
         int out_w,
-        int out_h
+        int out_h,
+        int actual_tile_w = 0,
+        int actual_tile_h = 0
     ) {
-        int crop_x = t.pad * scale;
-        int crop_y = t.pad * scale;
         int valid_w = t.w * scale;
         int valid_h = t.h * scale;
+        if (actual_tile_w <= 0) actual_tile_w = t.padded_w * scale;
+        if (actual_tile_h <= 0) actual_tile_h = t.padded_h * scale;
+
+        int crop_x = std::max(0, (actual_tile_w - valid_w) / 2);
+        int crop_y = std::max(0, (actual_tile_h - valid_h) / 2);
         int dst_x0 = t.x0 * scale;
         int dst_y0 = t.y0 * scale;
-        int tile_stride = t.padded_w * scale * 3;
+        int tile_stride = actual_tile_w * 3;
         int out_stride = out_w * 3;
 
         int copy_bytes = std::min(valid_w, out_w - dst_x0) * 3;

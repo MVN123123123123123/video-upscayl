@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Video-Upscayl
+GenericName=Video Super-Resolution Upscaler
+Comment=Universal Hardware-Accelerated Video Super-Resolution with Vulkan & SIMD
+Exec=video-upscaler %U
+Icon=video-upscayl
+Categories=AudioVideo;Video;Graphics;
+Terminal=false
+StartupNotify=true
+MimeType=video/mp4;video/x-matroska;video/quicktime;video/webm;video/x-msvideo;

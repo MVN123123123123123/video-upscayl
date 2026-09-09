@@ -71,6 +71,25 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(meta["height"], 272)
         self.assertEqual(meta["audio_stream_count"], 1)
 
+    def test_pipeline_realcugan_upscale(self):
+        cugan_output = os.path.join(self.temp_dir, "output_cugan.mp4")
+        pipeline = VideoUpscalePipeline(
+            input_path=self.input_video,
+            output_path=cugan_output,
+            model_name="cugan",
+            device_type=DeviceType.GPU,
+            tile_size=120
+        )
+        self.assertEqual(pipeline.tile_pad, 18)
+        stats = pipeline.run()
+
+        self.assertEqual(stats["processed_frames"], 30)
+        self.assertTrue(os.path.exists(cugan_output))
+        meta = probe_video(cugan_output)
+        self.assertEqual(meta["width"], 480)
+        self.assertEqual(meta["height"], 272)
+        self.assertEqual(meta["audio_stream_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

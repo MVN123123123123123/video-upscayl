@@ -99,6 +99,72 @@ class TestBackend(unittest.TestCase):
         self.assertLess(mean_diff, 5.0, f"Seam difference too high: {mean_diff}")
         session.close()
 
+    def test_realcugan_gpu_upscale(self):
+        cugan_bin = "models/realcugan-se-x2.bin"
+        cugan_param = "models/realcugan-se-x2.param"
+        if not os.path.exists(cugan_bin) or not os.path.exists(cugan_param):
+            self.skipTest("Real-CUGAN model files not found locally")
+
+        session = self.backend.create_instance(
+            model_path=cugan_bin,
+            param_path=cugan_param,
+            scale=2,
+            device_type=DeviceType.GPU,
+            tile_size=100,
+            tile_pad=18
+        )
+        in_frame = np.full((128, 128, 3), 120, dtype=np.uint8)
+        out_frame = session.process_frame(in_frame)
+        self.assertEqual(out_frame.shape, (256, 256, 3))
+        self.assertEqual(out_frame.dtype, np.uint8)
+        session.close()
+
+    def test_realcugan_cpu_upscale(self):
+        cugan_bin = "models/realcugan-se-x2.bin"
+        cugan_param = "models/realcugan-se-x2.param"
+        if not os.path.exists(cugan_bin) or not os.path.exists(cugan_param):
+            self.skipTest("Real-CUGAN model files not found locally")
+
+        session = self.backend.create_instance(
+            model_path=cugan_bin,
+            param_path=cugan_param,
+            scale=2,
+            device_type=DeviceType.CPU,
+            tile_size=64,
+            tile_pad=18
+        )
+        in_frame = np.full((64, 64, 3), 100, dtype=np.uint8)
+        out_frame = session.process_frame(in_frame)
+        self.assertEqual(out_frame.shape, (128, 128, 3))
+        session.close()
+
+    def test_realcugan_tile_seam_continuity(self):
+        cugan_bin = "models/realcugan-se-x2.bin"
+        cugan_param = "models/realcugan-se-x2.param"
+        if not os.path.exists(cugan_bin) or not os.path.exists(cugan_param):
+            self.skipTest("Real-CUGAN model files not found locally")
+
+        session = self.backend.create_instance(
+            model_path=cugan_bin,
+            param_path=cugan_param,
+            scale=2,
+            device_type=DeviceType.GPU,
+            tile_size=100,
+            tile_pad=18
+        )
+        # Linear gradient image
+        x = np.linspace(50, 200, 200, dtype=np.uint8)
+        y = np.linspace(50, 200, 200, dtype=np.uint8)
+        xx, yy = np.meshgrid(x, y)
+        img = np.stack([xx, yy, xx], axis=-1).astype(np.uint8)
+
+        out = session.process_frame(img)
+        # Check boundary seam at x=200
+        seam_diff = np.abs(out[:, 199, :].astype(int) - out[:, 200, :].astype(int))
+        mean_diff = np.mean(seam_diff)
+        self.assertLess(mean_diff, 5.0, f"Real-CUGAN seam difference too high: {mean_diff}")
+        session.close()
+
 
 if __name__ == "__main__":
     unittest.main()

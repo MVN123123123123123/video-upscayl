@@ -32,6 +32,27 @@ def find_executable(name: str) -> Optional[str]:
         os.path.join(base_dir, "tools", "ffmpeg", "bin"),
     ]
 
+    # PyInstaller bundled location
+    if hasattr(sys, "_MEIPASS"):
+        meipass = getattr(sys, "_MEIPASS")
+        search_dirs.insert(0, meipass)
+        search_dirs.insert(1, os.path.join(meipass, "bin"))
+        search_dirs.insert(2, os.path.join(meipass, "tools"))
+
+    # Frozen executable location
+    if getattr(sys, "frozen", False) and sys.executable:
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+        search_dirs.insert(0, exe_dir)
+        search_dirs.insert(1, os.path.join(exe_dir, "bin"))
+        search_dirs.insert(2, os.path.join(exe_dir, "tools"))
+
+    # Linux AppImage root environment
+    appdir = os.environ.get("APPDIR")
+    if appdir:
+        search_dirs.insert(0, os.path.join(appdir, "usr", "bin"))
+        search_dirs.insert(1, os.path.join(appdir, "bin"))
+        search_dirs.insert(2, appdir)
+
     if sys.platform == "win32":
         # Standard Windows installation paths
         search_dirs.extend([

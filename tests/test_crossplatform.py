@@ -47,6 +47,22 @@ class TestCrossPlatform(unittest.TestCase):
             entry_point()
             mock_gui_module.launch_gui.assert_called_once()
 
+    def test_appimage_gui_default_launch(self):
+        """Verify that inside AppImage without CLI subcommands, entry_point invokes launch_gui."""
+        mock_gui_module = unittest.mock.MagicMock()
+        with patch.dict(sys.modules, {"video_upscaler.gui": mock_gui_module}), \
+             patch.dict(os.environ, {"APPIMAGE": "/path/to/Video-Upscayl.AppImage"}), \
+             patch("sys.argv", ["Video-Upscayl.AppImage"]):
+            entry_point()
+            mock_gui_module.launch_gui.assert_called_once()
+
+    def test_candidate_model_dirs_and_writable_cache(self):
+        from video_upscaler.models import get_candidate_model_dirs, get_writable_model_dir
+        dirs = get_candidate_model_dirs()
+        self.assertTrue(len(dirs) > 0)
+        writable_dir = get_writable_model_dir()
+        self.assertTrue(os.path.isdir(writable_dir))
+
     def test_model_alias_resolution(self):
         from video_upscaler.models import get_model_info
         # Test exact
@@ -57,6 +73,16 @@ class TestCrossPlatform(unittest.TestCase):
         self.assertEqual(get_model_info("animevideov3-2x")["name"], "realesr-animevideov3-x2")
         self.assertEqual(get_model_info("animevid-2x")["name"], "realesr-animevideov3-x2")
         self.assertEqual(get_model_info("ultrasharp")["name"], "4x-UltraSharp")
+        # Test Real-CUGAN aliases
+        self.assertEqual(get_model_info("realcugan")["name"], "realcugan-se-x2")
+        self.assertEqual(get_model_info("cugan")["name"], "realcugan-se-x2")
+        self.assertEqual(get_model_info("real-cugan")["name"], "realcugan-se-x2")
+        self.assertEqual(get_model_info("cugan-2x")["name"], "realcugan-se-x2")
+        self.assertEqual(get_model_info("cugan-3x")["name"], "realcugan-se-x3")
+        self.assertEqual(get_model_info("realcugan-pro-x2")["name"], "realcugan-pro-x2")
+        self.assertEqual(get_model_info("cugan-pro-2x")["name"], "realcugan-pro-x2")
+        self.assertEqual(get_model_info("realcugan-se-x2")["tile_pad"], 18)
+        self.assertEqual(get_model_info("realcugan-se-x3")["tile_pad"], 14)
         # Test scale matching without override
         self.assertEqual(get_model_info(None, scale=2)["scale"], 2)
 

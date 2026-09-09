@@ -112,15 +112,8 @@ class VideoUpscalerGUI:
             settings_group,
             textvariable=self.model_var,
             state="readonly",
-            values=[
-                "realesr-animevideov3-x2",
-                "realesr-animevideov3-x3",
-                "realesr-animevideov3-x4",
-                "4x-UltraSharp",
-                "realesrgan-x4plus",
-                "realesrgan-x4plus-anime"
-            ],
-            width=28
+            values=list(MODEL_REGISTRY.keys()),
+            width=32
         )
         model_combo.grid(row=0, column=1, sticky=tk.W, padx=5, pady=4)
         model_combo.bind("<<ComboboxSelected>>", lambda e: self._on_model_changed())

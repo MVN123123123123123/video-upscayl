@@ -16,10 +16,12 @@ set(NCNN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/ncnn")
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${NCNN_ROOT}/include
+    ${NCNN_ROOT}/x64/include
 )
 
 link_directories(
     ${NCNN_ROOT}/lib
+    ${NCNN_ROOT}/x64/lib
 )
 
 add_library(videoupscaler SHARED
@@ -36,6 +38,16 @@ if(MSVC)
         /O2
         /W3
         /MP
+    )
+    target_link_libraries(videoupscaler PRIVATE
+        ncnn
+        glslang
+        SPIRV
+        MachineIndependent
+        GenericCodeGen
+        OSDependent
+        Vulkan::Vulkan
+        OpenMP::OpenMP_CXX
     )
 else()
     if(ENABLE_PORTABLE_BUILD)
@@ -55,15 +67,15 @@ else()
             -Wextra
         )
     endif()
-endif()
 
-target_link_libraries(videoupscaler PRIVATE
-    ncnn
-    glslang
-    SPIRV
-    Vulkan::Vulkan
-    OpenMP::OpenMP_CXX
-)
+    target_link_libraries(videoupscaler PRIVATE
+        ncnn
+        glslang
+        SPIRV
+        Vulkan::Vulkan
+        OpenMP::OpenMP_CXX
+    )
+endif()
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(videoupscaler PRIVATE
@@ -72,7 +84,14 @@ if(UNIX AND NOT APPLE)
     )
 endif()
 
-set_target_properties(videoupscaler PROPERTIES
-    PREFIX "lib"
-    OUTPUT_NAME "videoupscaler"
-)
+if(WIN32)
+    set_target_properties(videoupscaler PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "videoupscaler"
+    )
+else()
+    set_target_properties(videoupscaler PROPERTIES
+        PREFIX "lib"
+        OUTPUT_NAME "videoupscaler"
+    )
+endif()

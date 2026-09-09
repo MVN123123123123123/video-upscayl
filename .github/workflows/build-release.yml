@@ -1,0 +1,219 @@
+name: Build & Release Standalone Executables
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create GitHub Release and attach binaries"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  # =========================================================================
+  # 1. LINUX APPIMAGE BUILD (Ubuntu 22.04 for wide glibc compatibility)
+  # =========================================================================
+  build-linux:
+    name: Build Linux AppImage (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Install system dependencies & build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libvulkan-dev \
+            vulkan-tools \
+            glslang-tools \
+            libglslang-dev \
+            libspirv-tools-dev \
+            python3-tk \
+            tk-dev \
+            tcl-dev \
+            libgomp1 \
+            ffmpeg \
+            libgl1-mesa-glx \
+            curl \
+            wget \
+            file
+
+      - name: Install Python dependencies & PyInstaller
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install pyinstaller
+          python -m pip install -e .
+
+      - name: Build C++ Native Backend (Vulkan / Multi-Core SIMD)
+        run: |
+          bash scripts/build_backend.sh
+
+      - name: Run Automated Test Suite
+        run: |
+          python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Build Standalone Linux AppImage
+        run: |
+          bash scripts/build_appimage.sh
+
+      - name: Verify AppImage File
+        run: |
+          ls -lh dist/Video-Upscayl-x86_64.AppImage
+          file dist/Video-Upscayl-x86_64.AppImage
+
+      - name: Upload Linux AppImage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Video-Upscayl-Linux-x86_64-AppImage
+          path: dist/Video-Upscayl-x86_64.AppImage
+          if-no-files-found: error
+
+  # =========================================================================
+  # 2. WINDOWS STANDALONE EXE BUILD
+  # =========================================================================
+  build-windows:
+    name: Build Windows Standalone Executable (.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Vulkan SDK
+        uses: humblesoftware/setup-vulkan-sdk@v1.2.0
+        with:
+          vulkan-query-version: 1.3.280.0
+          vulkan-components: Vulkan-Headers, Vulkan-Loader
+          vulkan-use-cache: true
+
+      - name: Download Prebuilt NCNN Windows VS2022 Libraries
+        shell: pwsh
+        run: |
+          Write-Host "Downloading prebuilt NCNN Windows VS2022 release..."
+          $zipUrl = "https://github.com/Tencent/ncnn/releases/download/20260526/ncnn-20260526-windows-vs2022.zip"
+          $zipFile = "third_party\ncnn_win.zip"
+          $extractDir = "third_party\ncnn_extracted"
+          Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
+          Expand-Archive -Path $zipFile -DestinationPath $extractDir -Force
+          Copy-Item -Recurse -Force "$extractDir\ncnn-20260526-windows-vs2022\*" "third_party\ncnn\"
+          Remove-Item -Force $zipFile
+          Remove-Item -Recurse -Force $extractDir
+          Write-Host "NCNN Windows libraries deployed successfully."
+
+      - name: Build Native Windows DLL (videoupscaler.dll)
+        shell: cmd
+        run: |
+          call scripts\build_windows.bat
+
+      - name: Download Portable FFmpeg for Windows
+        shell: pwsh
+        run: |
+          Write-Host "Downloading portable FFmpeg..."
+          $ffUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          $ffZip = "ffmpeg_win.zip"
+          $ffExtract = "ffmpeg_extracted"
+          Invoke-WebRequest -Uri $ffUrl -OutFile $ffZip
+          Expand-Archive -Path $ffZip -DestinationPath $ffExtract -Force
+          New-Item -ItemType Directory -Force -Path "tools"
+          Copy-Item "$ffExtract\*\bin\ffmpeg.exe" "tools\"
+          Copy-Item "$ffExtract\*\bin\ffprobe.exe" "tools\"
+          Remove-Item -Force $ffZip
+          Remove-Item -Recurse -Force $ffExtract
+          Write-Host "Bundled tools\ffmpeg.exe and tools\ffprobe.exe"
+
+      - name: Install Python dependencies & PyInstaller
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install pyinstaller
+          python -m pip install -e .
+
+      - name: Package Standalone Windows Executable (.exe)
+        shell: pwsh
+        run: |
+          python scripts/package_windows.py --mode onefile
+
+      - name: Verify Windows Executable
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path dist\Video-Upscayl-Windows-x64.exe | Select-Object Name, Length, LastWriteTime
+
+      - name: Upload Windows Executable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Video-Upscayl-Windows-x64-Exe
+          path: dist/Video-Upscayl-Windows-x64.exe
+          if-no-files-found: error
+
+  # =========================================================================
+  # 3. AUTOMATED GITHUB RELEASE (Triggered on Tags or Manual Request)
+  # =========================================================================
+  release:
+    name: Publish GitHub Release
+    needs: [build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create release asset directory
+        run: mkdir -p release_assets
+
+      - name: Download Linux AppImage Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Video-Upscayl-Linux-x86_64-AppImage
+          path: release_assets/
+
+      - name: Download Windows Executable Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Video-Upscayl-Windows-x64-Exe
+          path: release_assets/
+
+      - name: Compute SHA256 Checksums
+        run: |
+          cd release_assets
+          sha256sum Video-Upscayl-x86_64.AppImage Video-Upscayl-Windows-x64.exe > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release_assets/Video-Upscayl-x86_64.AppImage
+            release_assets/Video-Upscayl-Windows-x64.exe
+            release_assets/SHA256SUMS.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false

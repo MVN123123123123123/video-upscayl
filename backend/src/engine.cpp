@@ -106,7 +106,24 @@ int InferenceWorker::process_tile(
     uint8_t* out_rgb,
     int scale
 ) {
+    int actual_out_w = 0;
+    int actual_out_h = 0;
+    return process_tile(in_rgb, w, h, out_rgb, actual_out_w, actual_out_h, scale);
+}
+
+int InferenceWorker::process_tile(
+    const uint8_t* in_rgb,
+    int w,
+    int h,
+    uint8_t* out_rgb,
+    int& actual_out_w,
+    int& actual_out_h,
+    int scale
+) {
     (void)scale;
+    actual_out_w = 0;
+    actual_out_h = 0;
+
     ncnn::Mat in = ncnn::Mat::from_pixels(in_rgb, ncnn::Mat::PIXEL_RGB, w, h);
     if (in.empty()) {
         std::cerr << "[VideoUpscaler] Failed to allocate input Mat for tile (" << w << "x" << h << ")" << std::endl;
@@ -132,6 +149,9 @@ int InferenceWorker::process_tile(
     const float mean_vals[3] = {0.0f, 0.0f, 0.0f};
     out.substract_mean_normalize(mean_vals, denorm_vals);
     out.to_pixels(out_rgb, ncnn::Mat::PIXEL_RGB);
+
+    actual_out_w = out.w;
+    actual_out_h = out.h;
 
     return 0;
 }

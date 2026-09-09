@@ -221,12 +221,14 @@ static int process_tiles_single_worker(
         int out_tile_h = t.padded_h * scale;
         std::vector<uint8_t> tile_out(out_tile_w * out_tile_h * 3);
 
-        int ret = worker->process_tile(tile_in.data(), t.padded_w, t.padded_h, tile_out.data(), scale);
+        int actual_out_w = 0;
+        int actual_out_h = 0;
+        int ret = worker->process_tile(tile_in.data(), t.padded_w, t.padded_h, tile_out.data(), actual_out_w, actual_out_h, scale);
         if (ret != 0) {
             return ret;
         }
 
-        Tiler::stitch_tile(tile_out.data(), t, scale, out_rgb, out_w, out_h);
+        Tiler::stitch_tile(tile_out.data(), t, scale, out_rgb, out_w, out_h, actual_out_w, actual_out_h);
     }
     return 0;
 }
@@ -265,13 +267,15 @@ static int process_tiles_hybrid(
             int out_tile_h = t.padded_h * scale;
             std::vector<uint8_t> tile_out(out_tile_w * out_tile_h * 3);
 
-            int ret = worker->process_tile(tile_in.data(), t.padded_w, t.padded_h, tile_out.data(), scale);
+            int actual_out_w = 0;
+            int actual_out_h = 0;
+            int ret = worker->process_tile(tile_in.data(), t.padded_w, t.padded_h, tile_out.data(), actual_out_w, actual_out_h, scale);
             if (ret != 0) {
                 error_flag.store(ret);
                 break;
             }
 
-            Tiler::stitch_tile(tile_out.data(), t, scale, out_rgb, out_w, out_h);
+            Tiler::stitch_tile(tile_out.data(), t, scale, out_rgb, out_w, out_h, actual_out_w, actual_out_h);
         }
     };
 

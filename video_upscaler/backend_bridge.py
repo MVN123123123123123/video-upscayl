@@ -37,6 +37,28 @@ def find_library_path() -> str:
         os.path.dirname(__file__),
     ]
 
+    # PyInstaller bundled location
+    if hasattr(sys, "_MEIPASS"):
+        meipass = getattr(sys, "_MEIPASS")
+        search_dirs.insert(0, meipass)
+        search_dirs.insert(1, os.path.join(meipass, "lib"))
+        search_dirs.insert(2, os.path.join(meipass, "bin"))
+
+    # Frozen executable location
+    if getattr(sys, "frozen", False) and sys.executable:
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+        search_dirs.insert(0, exe_dir)
+        search_dirs.insert(1, os.path.join(exe_dir, "lib"))
+        search_dirs.insert(2, os.path.join(exe_dir, "bin"))
+
+    # Linux AppImage root environment
+    appdir = os.environ.get("APPDIR")
+    if appdir:
+        search_dirs.insert(0, os.path.join(appdir, "usr", "lib"))
+        search_dirs.insert(1, os.path.join(appdir, "lib"))
+        search_dirs.insert(2, os.path.join(appdir, "usr", "bin"))
+        search_dirs.insert(3, appdir)
+
     candidates = []
     for s_dir in search_dirs:
         for name in lib_names:
