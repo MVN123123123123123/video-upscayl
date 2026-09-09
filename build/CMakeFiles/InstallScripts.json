@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/linux/video-upscayl/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

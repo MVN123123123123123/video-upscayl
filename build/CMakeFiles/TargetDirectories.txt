@@ -1,3 +1,0 @@
-/home/linux/video-upscayl/build/CMakeFiles/videoupscaler.dir
-/home/linux/video-upscayl/build/CMakeFiles/edit_cache.dir
-/home/linux/video-upscayl/build/CMakeFiles/rebuild_cache.dir

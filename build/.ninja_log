@@ -1,7 +1,0 @@
-# ninja log v7
-1	484	1788948806358280176	CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o	6217c76ea3ce9f9e
-1	332	1788948806357117518	CMakeFiles/videoupscaler.dir/src/engine.cpp.o	2121dbed87005c7
-484	658	1788948806840104296	libvideoupscaler.so	5cff3a7f413703a3
-1	344	1788949670675916722	CMakeFiles/videoupscaler.dir/src/engine.cpp.o	57b86cb3f7227b27
-1	496	1788949670677092548	CMakeFiles/videoupscaler.dir/src/videoupscaler.cpp.o	433a1733a1d238ce
-496	675	1788949671170902551	libvideoupscaler.so	d017d3ce9b006d8e
